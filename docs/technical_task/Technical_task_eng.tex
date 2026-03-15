@@ -1,0 +1,197 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{ragged2e}
+\usepackage{indentfirst}
+\usepackage{titlesec}
+\usepackage{tocloft}
+
+\geometry{
+    left=30mm,
+    right=15mm,
+    top=20mm,
+    bottom=20mm
+}
+
+\usepackage[
+  unicode,
+  pdftitle={Technical task},
+  pdfauthor={Artem Davydchuk}
+]{hyperref}
+
+\setlength{\parindent}{1.25cm}
+\onehalfspacing
+
+\titleformat{\section}
+    {\normalfont\bfseries}
+    {\thesection.}
+    {0.5em}
+    {}
+
+\renewcommand{\contentsname}{Contents}
+
+\begin{document}
+
+    \begin{center} \textbf{\Large Technical Specification for the Course Project} \end{center}
+
+    \vspace{0.5cm}
+
+    \tableofcontents
+
+    \newpage
+
+    \section{NAME AND SCOPE OF APPLICATION}
+
+    This technical specification applies to the development of the software application
+    \textbf{``System for Dialog Interaction with Large Language Models with Web and Console Interfaces''}.
+
+    The scope of application of the developed software product includes:
+    organization of user interaction with a language model,
+    management of chat history, launching the application in different operating modes,
+    as well as its use for educational, demonstration, and research purposes
+    in the fields of information technology, artificial intelligence, and software engineering.
+
+    The software application is intended for local or network use
+    on a personal computer and must provide convenient interaction with the system
+    both through a browser-based web user interface and through a command-line interface.
+
+    \section{REASONS FOR DEVELOPMENT}
+
+    The basis for development is the assignment for the course project
+    within the educational and professional program
+    \textbf{``Computer Systems and Networks''}
+    in the specialty
+
+    \noindent
+    \textbf{123 ``Computer Engineering''}.
+
+    The need for development is due to the growing relevance of systems
+    that provide interaction between humans and intelligent software tools,
+    in particular with large language models, as well as by the need to create
+    a convenient, flexible, and accessible software tool
+    that supports multiple modes of operation --- a web interface and a console interface.
+
+    \section{PURPOSE AND OBJECTIVE OF DEVELOPMENT}
+
+    The purpose of this project is to develop a software application for dialog interaction
+    with a large language model, which provides:
+
+    \begin{itemize}
+        \item operation in two modes: through a browser-based web user interface and through a command-line interface (CLI);
+        \item creation of a new chat and selection of an existing chat;
+        \item input, transmission, and display of messages within a dialogue;
+        \item storage of chat history;
+        \item ease of use and clear organization of the interface.
+    \end{itemize}
+
+    The objective of the development is to create a universal software tool
+    that can be used as a demonstration, educational, or basic applied system
+    for working with language models and for further extension of functional capabilities.
+
+    \section{DEVELOPMENT SOURCES}
+
+    The sources for development are:
+
+    \begin{itemize}
+        \item scientific and technical literature on software engineering, artificial intelligence, and the construction of dialogue systems;
+        \item reference documentation for the Python programming language;
+        \item documentation for libraries used to implement web and console interfaces;
+        \item Internet publications devoted to the construction of LLM systems, client applications, and user interfaces;
+        \item materials on software architecture design and data storage organization.
+    \end{itemize}
+
+    \section{TECHNICAL REQUIREMENTS}
+
+    \subsection{Requirements for the Developed Product}
+
+    The developed software application must meet the following requirements:
+
+    \begin{enumerate}
+        \item The program must be launched from the main file \texttt{app.py}.
+        \item Two modes of operation must be implemented:
+        \begin{itemize}
+            \item standard launch --- launching the web user interface accessible through a browser;
+            \item launch with the \texttt{-t} parameter --- switching to command-line mode.
+        \end{itemize}
+        \item In web interface mode, the following must be provided:
+        \begin{itemize}
+            \item display of the chat list;
+            \item creation of a new chat;
+            \item opening an existing chat;
+            \item display of message history;
+            \item input of a new message and receipt of a response.
+        \end{itemize}
+        \item In console mode, the following must be provided:
+        \begin{itemize}
+            \item creation of a new chat;
+            \item selection of an existing chat;
+            \item exchange of messages in text mode;
+            \item correct termination of the session.
+        \end{itemize}
+        \item Chat history storage in files or local data storage must be implemented.
+        \item The program interface must be logically structured, understandable, and convenient for the user.
+        \item The program must correctly handle input errors, startup failures, and invalid command-line parameters.
+        \item The software architecture must allow for further extension of functionality.
+    \end{enumerate}
+
+    \subsection{Software Requirements}
+
+    The following are required for the functioning of the software application:
+
+    \begin{itemize}
+        \item operating system: Windows 10/11, Linux, or another modern operating system with Python support;
+        \item Python interpreter version 3.10 or higher;
+        \item a modern web browser with support for HTML5, CSS, and JavaScript;
+        \item libraries and modules required to implement the web user interface, program logic, and chat history storage;
+        \item software development and debugging tools (if necessary).
+    \end{itemize}
+
+    \subsection{Hardware Requirements}
+
+    For operation of the software application, a personal computer is required
+    with the following minimum characteristics:
+
+    \begin{itemize}
+        \item x86\_64 architecture processor;
+        \item RAM --- at least 8 GB;
+        \item free disk space --- at least 1 GB;
+        \item monitor, keyboard, and input device;
+        \item if necessary --- Internet connection for working with external services or models.
+    \end{itemize}
+
+    \section{DEVELOPMENT STAGES}
+
+    \begin{longtable}{|>{\centering\arraybackslash}m{1.5cm}|>{\RaggedRight\arraybackslash}m{10.5cm}|>{\centering\arraybackslash}m{3cm}|}
+        \hline
+        \textbf{No.} & \textbf{Development Stage} & \textbf{Date} \\
+        \hline
+        6.1 & Receiving the topic and assignment & 15.02.2026\\
+        \hline
+        6.2 & Selection and study of literature on dialogue systems, LLMs, and web user interfaces & 15.03.2026\\
+        \hline
+        6.3 & Preparation of the technical specification & 15.03.2026\\
+        \hline
+        6.4 & Analysis of the subject area and review of existing approaches to building dialogue applications & \\
+        \hline
+        6.5 & Designing the structure of the software application, web interface and CLI modes, as well as the chat storage mechanism & \\
+        \hline
+        6.6 & Development of the software application & \\
+        \hline
+        6.7 & Testing of the software application & \\
+        \hline
+        6.8 & Preparation of the explanatory note & \\
+        \hline
+        6.9 & Submission of the course project (paper) for review & \\
+        \hline
+        6.10 & Defense of the course project (paper) & \\
+        \hline
+    \end{longtable}
+
+\end{document}
