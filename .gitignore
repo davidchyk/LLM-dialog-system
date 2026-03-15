@@ -1,1 +1,9 @@
+# Optional output Tex files from the compiler:
 
+*.aux
+*.fdb_latexmk
+*.fls
+docs/**/*.log
+docs/**/*.out
+*.synctex.gz
+*.toc
