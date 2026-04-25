@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Dialog System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <a class="brand" href="{{ url_for('index') }}">LLM Dialog System</a>
+        <form action="{{ url_for('create_chat') }}" method="post">
+          <button class="new-chat-button" type="submit">+ New Chat</button>
+        </form>
+      </div>
+
+      <label class="search-wrap">
+        <span class="sr-only">Search chats</span>
+        <input class="chat-search" type="search" placeholder="Search chats">
+      </label>
+
+      <nav class="sidebar-list" aria-label="Chats">
+        {% if chats %}
+          {% for chat in chats %}
+            <div class="sidebar-chat-row" data-title="{{ chat.title|lower }}" data-chat-id="{{ chat.id }}">
+              <a class="sidebar-chat-link" href="{{ url_for('chat_page', chat_id=chat.id) }}" title="{{ chat.title }}">
+                <span>{{ chat.title }}</span>
+              </a>
+              <div class="chat-actions">
+                <button type="button" class="chat-action rename-chat" aria-label="Rename chat" data-rename-url="{{ url_for('rename_chat', chat_id=chat.id) }}" data-current-title="{{ chat.title }}">✎</button>
+                <button type="button" class="chat-action delete-chat" aria-label="Delete chat" data-delete-url="{{ url_for('delete_chat', chat_id=chat.id) }}">×</button>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="sidebar-empty">No chats yet</p>
+        {% endif %}
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <section class="landing">
+        <div class="landing-copy">
+          <h1>LLM Dialog System</h1>
+          <p>Start a new chat or select an existing conversation.</p>
+        </div>
+
+        <form class="landing-form" action="{{ url_for('create_chat') }}" method="post">
+          <textarea name="title" rows="1" maxlength="60" placeholder="Name a new chat"></textarea>
+          <button type="submit" aria-label="Create chat">Create</button>
+        </form>
+      </section>
+    </main>
+  </div>
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <script>
+        window.__INITIAL_TOASTS__ = {{ messages|tojson }};
+      </script>
+    {% endif %}
+  {% endwith %}
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

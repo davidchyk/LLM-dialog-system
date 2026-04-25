@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ chat.title }} - LLM Dialog System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <a class="brand" href="{{ url_for('index') }}">LLM</a>
+        <form action="{{ url_for('create_chat') }}" method="post">
+          <button class="new-chat-button" type="submit">+ New Chat</button>
+        </form>
+      </div>
+
+      <label class="search-wrap">
+        <span class="sr-only">Search chats</span>
+        <input class="chat-search" type="search" placeholder="Search chats">
+      </label>
+
+      <nav class="sidebar-list" aria-label="Chats">
+        {% if chats %}
+          {% for item in chats %}
+            <div class="sidebar-chat-row{% if item.id == chat.id %} active{% endif %}" data-title="{{ item.title|lower }}" data-chat-id="{{ item.id }}" data-active="{% if item.id == chat.id %}true{% else %}false{% endif %}">
+              <a class="sidebar-chat-link" href="{{ url_for('chat_page', chat_id=item.id) }}" title="{{ item.title }}">
+                <span>{{ item.title }}</span>
+              </a>
+              <div class="chat-actions">
+                <button type="button" class="chat-action rename-chat" aria-label="Rename chat" data-rename-url="{{ url_for('rename_chat', chat_id=item.id) }}" data-current-title="{{ item.title }}">✎</button>
+                <button type="button" class="chat-action delete-chat" aria-label="Delete chat" data-delete-url="{{ url_for('delete_chat', chat_id=item.id) }}">×</button>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="sidebar-empty">No chats yet</p>
+        {% endif %}
+      </nav>
+    </aside>
+
+    <main class="main-area">
+      <section class="chat-view">
+        <header class="chat-topbar">
+          <div>
+            <h1 data-chat-title title="{{ chat.title }}">{{ chat.title }}</h1>
+            <p><span data-message-count>{{ chat.messages|length }}</span> messages</p>
+          </div>
+        </header>
+
+        <div class="messages" id="messages" data-messages>
+          {% if chat.messages %}
+            {% for message in chat.messages %}
+              <article class="message {{ message.role }}">
+                <div class="message-role">{{ message.role }}</div>
+                <div class="message-content">{{ message.content }}</div>
+                <div class="message-time">{{ message.timestamp|time_short }}</div>
+              </article>
+            {% endfor %}
+          {% else %}
+            <p class="empty-chat" data-empty-chat>No messages yet. Ask something to begin.</p>
+          {% endif %}
+        </div>
+
+        <form class="message-form" action="{{ url_for('send_message', chat_id=chat.id) }}" data-json-action="{{ url_for('send_message_json', chat_id=chat.id) }}" method="post">
+          <div class="input-shell">
+            <textarea name="message" rows="1" placeholder="What's on your mind?"></textarea>
+            <button type="submit" aria-label="Send message">Send</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <script>
+        window.__INITIAL_TOASTS__ = {{ messages|tojson }};
+      </script>
+    {% endif %}
+  {% endwith %}
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

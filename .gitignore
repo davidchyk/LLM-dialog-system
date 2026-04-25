@@ -7,3 +7,18 @@ docs/**/*.log
 docs/**/*.out
 *.synctex.gz
 *.toc
+
+# Python runtime files:
+__pycache__/
+.pytest_cache/
+.venv/
+.tmp/
+pytest-cache-files-*/
+tests/.runtime/
+tests/.runtime-web/
+
+# Local chat data:
+data/chats/*.json
+
+# Unnecessary media files
+_media/

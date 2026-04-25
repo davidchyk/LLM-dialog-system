@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+from src.core.llm_service import LLMService
+from src.core.models import Chat, utc_now_iso
+from src.storage.json_storage import JsonStorage
+
+MAX_CHAT_TITLE_LENGTH = 60
+
+
+class ChatTitleError(ValueError):
+    pass
+
+
+class DuplicateChatTitleError(ChatTitleError):
+    pass
+
+
+class ChatNotFoundError(LookupError):
+    pass
+
+
+class ChatManager:
+    def __init__(
+        self,
+        storage: JsonStorage | None = None,
+        llm_service: LLMService | None = None,
+    ) -> None:
+
+        self.storage = storage or JsonStorage()
+        self.llm_service = llm_service or LLMService()
+
+    def create_chat(self, title: str | None = None) -> Chat:
+
+        normalized_title = (
+            self.generate_unique_default_title()
+            if title is None
+            else self._validate_title(title)
+        )
+
+        if not self.is_title_available(normalized_title):
+            raise DuplicateChatTitleError("A chat with this title already exists")
+
+        return self.storage.create_chat(title=normalized_title)
+
+    def get_chat(self, chat_id: str) -> Chat | None:
+
+        return self.storage.get_chat(chat_id)
+
+    def list_chats(self) -> list[Chat]:
+
+        return self.storage.list_chats()
+
+    def send_message(self, chat_id: str, content: str) -> tuple[Chat, str] | None:
+
+        content = content.strip()
+
+        if not content:
+            return None
+
+        chat = self.storage.add_message(chat_id, "user", content)
+
+        if chat is None:
+            return None
+
+        assistant_response = self.llm_service.generate_response(content, chat.messages)
+        updated_chat = self.storage.add_message(chat_id, "assistant", assistant_response)
+
+        if updated_chat is None:
+            return None
+
+        return updated_chat, assistant_response
+
+    def rename_chat(self, chat_id: str, new_title: str) -> Chat:
+
+        chat = self.storage.get_chat(chat_id)
+
+        if chat is None:
+            raise ChatNotFoundError("Chat was not found.")
+
+        normalized_title = self._validate_title(new_title)
+
+        if not self.is_title_available(normalized_title, exclude_chat_id=chat_id):
+            raise DuplicateChatTitleError("A chat with this title already exists")
+
+        chat.title = normalized_title
+        chat.updated_at = utc_now_iso()
+        self.storage.save_chat(chat)
+        return chat
+
+    def delete_chat(self, chat_id: str) -> bool:
+
+        return self.storage.delete_chat(chat_id)
+
+    def is_title_available(
+        self,
+        title: str,
+        exclude_chat_id: str | None = None,
+    ) -> bool:
+
+        normalized_title = self._normalize_for_compare(title)
+
+        for chat in self.storage.list_chats():
+            if exclude_chat_id is not None and chat.id == exclude_chat_id:
+                continue
+
+            if self._normalize_for_compare(chat.title) == normalized_title:
+                return False
+
+        return True
+
+    def generate_unique_default_title(self) -> str:
+
+        base_title = "New Chat"
+        if self.is_title_available(base_title):
+            return base_title
+
+        counter = 2
+
+        while True:
+            candidate = f"{base_title} {counter}"
+            if self.is_title_available(candidate):
+                return candidate
+
+            counter += 1
+
+    def _validate_title(self, title: str) -> str:
+
+        normalized_title = title.strip()
+
+        if not normalized_title:
+            raise ChatTitleError("Chat title cannot be empty.")
+
+        if len(normalized_title) > MAX_CHAT_TITLE_LENGTH:
+            raise ChatTitleError("Chat title must be 60 characters or fewer.")
+
+        return normalized_title
+
+    def _normalize_for_compare(self, title: str) -> str:
+
+        return title.strip().casefold()
