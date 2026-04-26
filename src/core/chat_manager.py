@@ -7,7 +7,11 @@ from src.storage.json_storage import JsonStorage
 MAX_CHAT_TITLE_LENGTH = 60
 
 
-class ChatTitleError(ValueError):
+class ChatError(Exception):
+    pass
+
+
+class ChatTitleError(ChatError, ValueError):
     pass
 
 
@@ -15,7 +19,7 @@ class DuplicateChatTitleError(ChatTitleError):
     pass
 
 
-class ChatNotFoundError(LookupError):
+class ChatNotFoundError(ChatError, LookupError):
     pass
 
 
@@ -69,6 +73,11 @@ class ChatManager:
             return None
 
         return updated_chat, assistant_response
+
+    def add_message(self, chat_id: str, role: str, content: str) -> Chat | None:
+        if role not in {"user", "assistant"}:
+            raise ValueError("Message role must be 'user' or 'assistant'.")
+        return self.storage.add_message(chat_id, role, content)
 
     def rename_chat(self, chat_id: str, new_title: str) -> Chat:
 

@@ -15,6 +15,7 @@ __pycache__/
 .tmp/
 pytest-cache-files-*/
 tests/.runtime/
+tests/.runtime-pytest/
 tests/.runtime-web/
 
 # Local chat data:

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-# Пізніше можна бд psql використовувати 
+# PostgreSQL storage can be added later as another storage backend.
 
 import json
+import logging
 from pathlib import Path
 from uuid import uuid4
 
 from src.core.models import Chat, Message, Role, utc_now_iso
+
+logger = logging.getLogger(__name__)
 
 
 class JsonStorage:
@@ -40,7 +43,8 @@ class JsonStorage:
             with path.open("r", encoding="utf-8") as file:
                 data = json.load(file)
             return Chat.from_dict(data)
-        except (OSError, json.JSONDecodeError, KeyError, TypeError):
+        except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+            logger.warning("Skipping unreadable chat file %s: %s", path, error)
             return None
 
     def list_chats(self) -> list[Chat]:

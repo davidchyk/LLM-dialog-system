@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# Using Flask (maybe need to replace later) -> to think
+# Flask is the current web interface layer and can be extended later if needed.
 
 from datetime import datetime
 
