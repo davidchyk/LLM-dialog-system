@@ -18,8 +18,13 @@ tests/.runtime/
 tests/.runtime-pytest/
 tests/.runtime-web/
 
-# Local chat data:
+# Legacy local JSON chat files:
 data/chats/*.json
 
 # LLM models
 models/
+
+# Local environment files:
+.env
+.env.local
+*.local.env

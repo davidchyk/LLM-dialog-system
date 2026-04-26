@@ -4,7 +4,7 @@
 
 ## Description
 
-This is a local Python MVP for dialog interaction with large language models. The project includes a Flask web interface, a console CLI mode, local JSON chat storage, a mock LLM backend, and optional local HuggingFace Transformers inference.
+This is a local Python MVP for dialog interaction with large language models. The project includes a Flask web interface, a console CLI mode, PostgreSQL chat storage, a mock LLM backend, and optional local HuggingFace Transformers inference.
 
 ## Current Features
 
@@ -12,8 +12,7 @@ This is a local Python MVP for dialog interaction with large language models. Th
 * Console interface / CLI mode
 * Chat creation and selection
 * Chat rename and delete in the web UI
-* Message history
-* Local JSON storage in separate files
+* Message history stored in PostgreSQL
 * Mock assistant responses through configurable `MockLLMService`
 * Optional local Transformers backend with chat-template support for instruction models
 * Sidebar search, toast notifications, auto-resizing input, and auto-scroll
@@ -30,11 +29,10 @@ LLM-dialog-system/
 ├── src/
 │   ├── core/              # ChatManager and dataclass models
 │   ├── llm/               # LLM backend interface, factory, mock and Transformers backends
-│   ├── storage/           # JSON storage backend
+│   ├── storage/           # Storage interface and PostgreSQL storage backend
 │   ├── web/               # Flask routes, templates, static files
 │   └── cli/               # Console interface
-├── data/
-│   └── chats/             # Local chat JSON files
+├── scripts/               # Utility scripts and SQL schema helper
 ├── tests/                 # Pytest test suite
 └── docs/                  # Course project documentation
 ```
@@ -47,6 +45,97 @@ Windows PowerShell:
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+```
+
+## Environment Configuration
+
+The app reads configuration from environment variables and supports a `.env` file in the project root. The local `.env` file is ignored by Git, and `.env.example` is provided as a safe template without real secrets.
+
+Create your local config:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Then edit `.env`.
+
+Minimal PostgreSQL + mock LLM example:
+
+```text
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/llm_dialog_system
+
+LLM_BACKEND=mock
+GENERATION_PRESET=balanced
+```
+
+Local Qwen example:
+
+```text
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/llm_dialog_system
+
+LLM_BACKEND=transformers
+MODEL_NAME=models/qwen2.5-0.5b-instruct
+GENERATION_PRESET=balanced
+```
+
+PowerShell environment variables still work and can be used for temporary overrides. The project also includes `.vscode/settings.json` with `python.envFile` and `python.terminal.useEnvFile`, so the VS Code Python extension can inject `.env` variables into integrated terminals.
+
+## PostgreSQL Setup
+
+PostgreSQL is required. The database itself must exist before the app starts. The app creates the required tables automatically.
+
+Create the database in pgAdmin or with SQL:
+
+```sql
+CREATE DATABASE llm_dialog_system;
+```
+
+Then configure:
+
+```text
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/llm_dialog_system
+```
+
+You can also configure PostgreSQL with separate variables:
+
+```powershell
+$env:POSTGRES_HOST="localhost"
+$env:POSTGRES_PORT="5432"
+$env:POSTGRES_DB="llm_dialog_system"
+$env:POSTGRES_USER="postgres"
+$env:POSTGRES_PASSWORD="postgres"
+```
+
+`DATABASE_URL` takes priority when it is provided.
+
+## Database Schema
+
+The application uses two tables:
+
+```text
+chats 1 ──── * messages
+```
+
+`chats`:
+
+* `id`
+* `title`
+* `created_at`
+* `updated_at`
+
+`messages`:
+
+* `id`
+* `chat_id`
+* `role`
+* `content`
+* `timestamp`
+* `position`
+
+The schema is also available in:
+
+```text
+scripts/init_postgres.sql
 ```
 
 ## Run Web Mode
@@ -79,21 +168,14 @@ python app.py --terminal
 pytest
 ```
 
-## Data Storage
+Normal tests use in-memory test storage and do not require a real PostgreSQL server.
 
-Chats are stored locally as UTF-8 JSON files:
+Optional PostgreSQL integration tests require a real database and `DATABASE_URL`:
 
-```text
-data/chats/{chat_id}.json
+```powershell
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/llm_dialog_system"
+pytest -m postgres
 ```
-
-Each chat contains an id, title, timestamps, and messages. Chat title rules:
-
-* titles are unique case-insensitively;
-* leading/trailing whitespace is ignored for validation;
-* explicit titles cannot be blank;
-* titles must be 60 characters or fewer;
-* default names are generated as `New Chat`, `New Chat 2`, `New Chat 3`, etc.
 
 ## LLM Backend
 
@@ -104,59 +186,22 @@ Available backends:
 * `mock` - fast mock responses for development and tests.
 * `transformers` - local HuggingFace Transformers inference.
 
-Windows PowerShell web example:
-
-```powershell
-$env:LLM_BACKEND="mock"
-python app.py
-```
-
-Windows PowerShell CLI example:
-
-```powershell
-$env:LLM_BACKEND="mock"
-python app.py -t
-```
-
-## Running with Real Transformers Backend
-
-Place the local model files at:
+Mock mode:
 
 ```text
-models/distilgpt2
+LLM_BACKEND=mock
 ```
 
-The `models/` directory is intended for local model weights and should not be committed to Git.
+Transformers mode:
 
-Windows PowerShell web example:
-
-```powershell
-$env:LLM_BACKEND="transformers"
-$env:MODEL_NAME="models/distilgpt2"
-$env:MAX_NEW_TOKENS="80"
-python app.py
+```text
+LLM_BACKEND=transformers
+MODEL_NAME=models/qwen2.5-0.5b-instruct
 ```
-
-Windows PowerShell CLI example:
-
-```powershell
-$env:LLM_BACKEND="transformers"
-$env:MODEL_NAME="models/distilgpt2"
-python app.py -t
-```
-
-Return to mock mode:
-
-```powershell
-$env:LLM_BACKEND="mock"
-python app.py
-```
-
-`distilgpt2` is a small text-generation model, not a high-quality chat or instruction model. It is used here to verify that real pretrained inference works.
 
 ## Recommended Local Chat Model
 
-`distilgpt2` is useful for testing the pipeline, but it is not a chat model. For basic local chat, use:
+For basic local chat, use:
 
 ```text
 Qwen/Qwen2.5-0.5B-Instruct
@@ -166,23 +211,6 @@ Download it to `models/qwen2.5-0.5b-instruct`:
 
 ```powershell
 python scripts/download_qwen_0_5b.py
-```
-
-Run web mode with Qwen:
-
-```powershell
-$env:LLM_BACKEND="transformers"
-$env:MODEL_NAME="models/qwen2.5-0.5b-instruct"
-$env:MAX_NEW_TOKENS="128"
-python app.py
-```
-
-Run CLI mode with Qwen:
-
-```powershell
-$env:LLM_BACKEND="transformers"
-$env:MODEL_NAME="models/qwen2.5-0.5b-instruct"
-python app.py -t
 ```
 
 This model is much better for chat than `distilgpt2`, but it is still a small local model and its quality is limited compared to large cloud models.
@@ -210,18 +238,6 @@ Available presets:
 * `balanced` - default behavior for regular chat.
 * `creative` - higher randomness and longer answers.
 
-Windows PowerShell examples:
-
-```powershell
-$env:GENERATION_PRESET="precise"
-python app.py
-```
-
-```powershell
-$env:GENERATION_PRESET="creative"
-python app.py
-```
-
 Explicit generation variables such as `MAX_NEW_TOKENS`, `TEMPERATURE`, `TOP_P`, `DO_SAMPLE`, and `REPETITION_PENALTY` override preset defaults.
 
 ## Local Model Discovery
@@ -229,16 +245,6 @@ Explicit generation variables such as `MAX_NEW_TOKENS`, `TEMPERATURE`, `TOP_P`, 
 The web UI scans the local `models/` directory and shows available model folders in the sidebar. A folder is considered a local model when it contains `config.json` and model weights such as `*.safetensors` or `pytorch_model.bin`.
 
 Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh or restart the app to see it in the sidebar.
-
-To use a discovered model:
-
-```powershell
-$env:LLM_BACKEND="transformers"
-$env:MODEL_NAME="models/qwen2.5-0.5b-instruct"
-python app.py
-```
-
-The UI lists local models only. It does not hot-swap loaded models at runtime yet.
 
 ## Math Rendering
 
@@ -253,9 +259,9 @@ The web UI uses MathJax from CDN only for math rendering in the local browser in
 
 ## Current Limitations
 
-* `distilgpt2` response quality can be poor because it is not a chat-tuned model.
-* `Qwen2.5-0.5B-Instruct` is small, so response quality is still limited.
+* The PostgreSQL database must be created manually before first run.
 * Runtime model switching is not implemented yet. Set `MODEL_NAME` and restart the app.
+* Database migrations are handled by simple schema creation, not Alembic.
 * Responses are not streamed yet.
-* PostgreSQL storage is planned for a later stage.
+* User accounts/auth are not implemented.
 * LoRA/QLoRA support is planned for a later stage.

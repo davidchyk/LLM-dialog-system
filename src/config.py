@@ -1,6 +1,17 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - dependency is declared in requirements.txt
+    load_dotenv = None
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if load_dotenv is not None:
+    load_dotenv(PROJECT_ROOT / ".env")
 
 
 class ConfigError(ValueError):
@@ -76,6 +87,23 @@ def _parse_generation_preset(default: str = "balanced") -> str:
     return default
 
 
+def get_database_url() -> str:
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url:
+        return database_url
+
+    host = os.getenv("POSTGRES_HOST", "").strip()
+    port = os.getenv("POSTGRES_PORT", "5432").strip()
+    database = os.getenv("POSTGRES_DB", "").strip()
+    user = os.getenv("POSTGRES_USER", "").strip()
+    password = os.getenv("POSTGRES_PASSWORD", "").strip()
+
+    if not all((host, port, database, user, password)):
+        return ""
+
+    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+
+
 class AppConfig:
     LLM_BACKEND = os.getenv("LLM_BACKEND", "mock")
     MODEL_NAME = os.getenv("MODEL_NAME", "models/distilgpt2")
@@ -102,3 +130,4 @@ class AppConfig:
         _PRESET_VALUES["repetition_penalty"],
     )
     NO_REPEAT_NGRAM_SIZE = _parse_int("NO_REPEAT_NGRAM_SIZE", 0)
+    DATABASE_URL = get_database_url()

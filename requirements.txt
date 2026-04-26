@@ -4,3 +4,5 @@ torch
 transformers
 accelerate
 huggingface_hub
+psycopg[binary]
+python-dotenv
