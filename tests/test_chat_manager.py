@@ -31,7 +31,7 @@ def test_send_message_saves_user_and_assistant_messages():
 
     assert result is not None
     updated_chat, response = result
-    assert response == 'Mock LLM response: you said "Hello"'
+    assert response == 'Assistant response: you said "Hello"'
     assert [message.role for message in updated_chat.messages] == [
         "user",
         "assistant",
