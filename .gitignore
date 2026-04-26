@@ -23,3 +23,6 @@ data/chats/*.json
 
 # Unnecessary media files
 _media/
+
+# LLM models
+models/
