@@ -8,6 +8,7 @@ const messagesContainer = document.getElementById("messages");
 const messageCount = document.querySelector("[data-message-count]");
 const chatHeaderTitle = document.querySelector("[data-chat-title]");
 const chatEmptyState = document.getElementById("chat-empty-state");
+let isGenerating = false;
 
 function formatLocalTime(isoTimestamp) {
   if (!isoTimestamp) {
@@ -33,6 +34,59 @@ function formatExistingMessageTimes() {
       time.textContent = formatted;
     }
   });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function renderAssistantMarkdown(text) {
+  const codeBlocks = [];
+  let escaped = escapeHtml(text);
+
+  escaped = escaped.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_match, language, code) => {
+    const index = codeBlocks.length;
+    const languageClass = language ? ` language-${language}` : "";
+    codeBlocks.push(
+      `<pre><code class="${languageClass.trim()}">${code.trim()}</code></pre>`
+    );
+    return `@@CODE_BLOCK_${index}@@`;
+  });
+
+  escaped = escaped.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+
+  const paragraphs = escaped
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => {
+      if (/^@@CODE_BLOCK_\d+@@$/.test(paragraph)) {
+        return paragraph;
+      }
+      return `<p>${paragraph.replace(/\n/g, "<br>")}</p>`;
+    })
+    .join("");
+
+  return paragraphs.replace(/@@CODE_BLOCK_(\d+)@@/g, (_match, index) => {
+    return codeBlocks[Number(index)] || "";
+  });
+}
+
+function renderExistingAssistantMarkdown() {
+  document
+    .querySelectorAll(".message.assistant .message-content")
+    .forEach((content) => {
+      if (content.closest(".pending")) {
+        return;
+      }
+      const rawText = content.textContent || "";
+      content.innerHTML = renderAssistantMarkdown(rawText);
+    });
 }
 
 function showToast(message, type = "error", duration = 3500) {
@@ -83,13 +137,7 @@ function scheduleScrollToBottom() {
   requestAnimationFrame(scrollMessagesToBottom);
 }
 
-function appendMessage(message) {
-  if (!messagesContainer) {
-    return;
-  }
-
-  document.querySelector("[data-empty-chat]")?.remove();
-
+function createMessageElement(message) {
   const article = document.createElement("article");
   article.className = `message ${message.role}`;
 
@@ -99,15 +147,104 @@ function appendMessage(message) {
 
   const content = document.createElement("div");
   content.className = "message-content";
-  content.textContent = message.content;
+  if (message.role === "assistant") {
+    content.innerHTML = renderAssistantMarkdown(message.content);
+  } else {
+    content.textContent = message.content;
+  }
 
   const time = document.createElement("time");
   time.className = "message-time";
-  time.dataset.timestamp = message.timestamp;
-  time.textContent = formatLocalTime(message.timestamp);
+  if (message.timestamp) {
+    time.dataset.timestamp = message.timestamp;
+    time.textContent = formatLocalTime(message.timestamp);
+  }
+
+  article.append(role, content, time);
+  return article;
+}
+
+function appendMessage(message) {
+  if (!messagesContainer) {
+    return null;
+  }
+
+  document.querySelector("[data-empty-chat]")?.remove();
+  const article = createMessageElement(message);
+  messagesContainer.append(article);
+  return article;
+}
+
+function appendPendingAssistantMessage() {
+  if (!messagesContainer) {
+    return null;
+  }
+
+  document.querySelector("[data-empty-chat]")?.remove();
+  const article = document.createElement("article");
+  article.className = "message assistant pending";
+  article.dataset.pending = "true";
+
+  const role = document.createElement("div");
+  role.className = "message-role";
+  role.textContent = "assistant";
+
+  const content = document.createElement("div");
+  content.className = "message-content";
+  content.append(createTypingDots());
+
+  const time = document.createElement("time");
+  time.className = "message-time";
 
   article.append(role, content, time);
   messagesContainer.append(article);
+  return article;
+}
+
+function createTypingDots() {
+  const wrapper = document.createElement("span");
+  wrapper.className = "typing-dots";
+  wrapper.setAttribute("aria-label", "Generating response");
+  for (let index = 0; index < 3; index += 1) {
+    wrapper.append(document.createElement("span"));
+  }
+  return wrapper;
+}
+
+function resolvePendingAssistantMessage(pendingElement, message) {
+  const target = pendingElement || appendMessage(message);
+  if (!target) {
+    return;
+  }
+
+  target.classList.remove("pending");
+  delete target.dataset.pending;
+
+  const content = target.querySelector(".message-content");
+  if (content) {
+    content.innerHTML = renderAssistantMarkdown(message.content);
+  }
+
+  const time = target.querySelector(".message-time");
+  if (time) {
+    time.dataset.timestamp = message.timestamp;
+    time.textContent = formatLocalTime(message.timestamp);
+  }
+}
+
+function markPendingAssistantError(pendingElement) {
+  if (!pendingElement) {
+    return;
+  }
+
+  pendingElement.classList.remove("pending");
+  pendingElement.classList.add("error");
+  delete pendingElement.dataset.pending;
+
+  const content = pendingElement.querySelector(".message-content");
+  if (content) {
+    content.textContent = "Could not generate a response.";
+  }
 }
 
 async function postJson(url, payload = {}) {
@@ -164,30 +301,44 @@ forms.forEach((form) => {
       return;
     }
 
+    event.preventDefault();
+    if (isGenerating) {
+      return;
+    }
+
     const message = textarea.value.trim();
     if (message === "") {
-      event.preventDefault();
       clearEmptyTextarea(textarea);
       return;
     }
 
-    event.preventDefault();
     const submitButton = form.querySelector("button");
+    isGenerating = true;
     submitButton?.setAttribute("disabled", "disabled");
+
+    const optimisticUserMessage = {
+      role: "user",
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
+    appendMessage(optimisticUserMessage);
+    const pendingAssistantMessage = appendPendingAssistantMessage();
+    resetTextarea(textarea);
+    scheduleScrollToBottom();
 
     try {
       const data = await postJson(jsonAction, { message });
-      appendMessage(data.user_message);
-      scheduleScrollToBottom();
-      appendMessage(data.assistant_message);
+      resolvePendingAssistantMessage(pendingAssistantMessage, data.assistant_message);
       if (messageCount && typeof data.message_count === "number") {
         messageCount.textContent = data.message_count;
       }
-      resetTextarea(textarea);
       scheduleScrollToBottom();
     } catch (error) {
+      markPendingAssistantError(pendingAssistantMessage);
       showToast(error.message);
+      scheduleScrollToBottom();
     } finally {
+      isGenerating = false;
       submitButton?.removeAttribute("disabled");
       textarea.focus();
     }
@@ -424,6 +575,7 @@ document.querySelectorAll(".delete-chat").forEach((button) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   formatExistingMessageTimes();
+  renderExistingAssistantMarkdown();
   updateSidebarSearchState();
 
   const initialToasts = window.__INITIAL_TOASTS__ || [];
