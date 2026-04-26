@@ -8,11 +8,11 @@ from src.core.chat_manager import (
     DuplicateChatTitleError,
 )
 from src.llm.base import BaseLLMService
-from src.storage.json_storage import JsonStorage
+from tests.in_memory_storage import InMemoryStorage
 
 
 def make_manager(tmp_path) -> ChatManager:
-    return ChatManager(storage=JsonStorage(tmp_path / "chats"))
+    return ChatManager(storage=InMemoryStorage())
 
 
 def test_create_chat_with_custom_title(tmp_path):
@@ -179,7 +179,7 @@ def test_send_message_passes_dict_history_to_llm(tmp_path):
 
     spy_service = SpyLLMService()
     manager = ChatManager(
-        storage=JsonStorage(tmp_path / "chats"),
+        storage=InMemoryStorage(),
         llm_service=spy_service,
     )
     chat = manager.create_chat("History")

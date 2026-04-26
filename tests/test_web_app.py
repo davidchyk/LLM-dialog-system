@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from src.core.chat_manager import ChatManager
-from src.storage.json_storage import JsonStorage
 from src.web.web_app import create_app
+from tests.in_memory_storage import InMemoryStorage
 
 
 def make_client(tmp_path):
-    manager = ChatManager(storage=JsonStorage(tmp_path / "chats"))
+    manager = ChatManager(storage=InMemoryStorage())
     app = create_app(manager, models_dir=tmp_path / "models")
     app.config.update(TESTING=True)
     return app.test_client(), manager

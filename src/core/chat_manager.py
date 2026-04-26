@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from src.core.models import Chat, utc_now_iso
 from src.llm.base import BaseLLMService
 from src.llm.factory import create_llm_service
-from src.storage.json_storage import JsonStorage
+from src.storage.base import BaseStorage
+from src.storage.factory import create_storage
 
 MAX_CHAT_TITLE_LENGTH = 60
 
@@ -27,11 +30,11 @@ class ChatNotFoundError(ChatError, LookupError):
 class ChatManager:
     def __init__(
         self,
-        storage: JsonStorage | None = None,
+        storage: BaseStorage | None = None,
         llm_service: BaseLLMService | None = None,
     ) -> None:
 
-        self.storage = storage or JsonStorage()
+        self.storage = storage or create_storage()
         self.llm_service = llm_service or create_llm_service()
 
     def create_chat(self, title: str | None = None) -> Chat:
@@ -45,7 +48,15 @@ class ChatManager:
         if not self.is_title_available(normalized_title):
             raise DuplicateChatTitleError("A chat with this title already exists")
 
-        return self.storage.create_chat(title=normalized_title)
+        now = utc_now_iso()
+        chat = Chat(
+            id=uuid4().hex,
+            title=normalized_title,
+            created_at=now,
+            updated_at=now,
+            messages=[],
+        )
+        return self.storage.create_chat(chat)
 
     def get_chat(self, chat_id: str) -> Chat | None:
 
