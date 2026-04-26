@@ -1,0 +1,21 @@
+@startuml
+entity chats {
+  * id : TEXT <<PK>>
+  --
+  title : TEXT
+  created_at : TIMESTAMPTZ
+  updated_at : TIMESTAMPTZ
+}
+
+entity messages {
+  * id : BIGSERIAL <<PK>>
+  --
+  chat_id : TEXT <<FK>>
+  role : TEXT
+  content : TEXT
+  timestamp : TIMESTAMPTZ
+  position : INTEGER
+}
+
+chats ||--o{ messages : contains
+@enduml

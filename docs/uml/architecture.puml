@@ -1,0 +1,38 @@
+@startuml
+skinparam componentStyle rectangle
+actor User as U
+
+package "User Interface Layer" {
+  [Web UI\nFlask + HTML/CSS/JS] as Web
+  [CLI Interface] as CLI
+}
+
+package "Core Layer" {
+  [ChatManager] as CM
+}
+
+package "LLM Layer" {
+  [BaseLLMService] as BaseLLM
+  [MockLLMService] as Mock
+  [TransformersLLMService] as Trans
+  [Local pretrained model] as Model
+}
+
+package "Storage Layer" {
+  [BaseStorage] as BaseStorage
+  [PostgresStorage] as PGStorage
+  database "PostgreSQL" as DB
+}
+
+U --> Web
+U --> CLI
+Web --> CM
+CLI --> CM
+CM --> BaseLLM
+BaseLLM <|-- Mock
+BaseLLM <|-- Trans
+Trans --> Model
+CM --> BaseStorage
+BaseStorage <|-- PGStorage
+PGStorage --> DB
+@enduml

@@ -1,0 +1,113 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian]{babel}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{ragged2e}
+\usepackage{indentfirst}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{pdflscape}
+
+\geometry{
+    left=30mm,
+    right=15mm,
+    top=20mm,
+    bottom=20mm
+}
+
+\usepackage[
+  unicode,
+  pdftitle={Курсова робота},
+  pdfauthor={Давидчук Артем}
+]{hyperref}
+
+\setlength{\parindent}{1.25cm}
+\onehalfspacing
+
+\titleformat{\section}
+    {\normalfont\bfseries}
+    {РОЗДІЛ \thesection.}
+    {0.5em}
+    {}
+
+\titleformat{\subsection}
+    {\normalfont\bfseries}
+    {\thesubsection}
+    {0.5em}
+    {}
+
+\renewcommand{\contentsname}{Зміст}
+\renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}.}
+\renewcommand{\thetable}{\arabic{section}.\arabic{table}}
+\renewcommand{\thefigure}{\arabic{section}.\arabic{figure}}
+\addto\captionsukrainian{\renewcommand{\tablename}{Таблиця}}
+\addto\captionsukrainian{\renewcommand{\figurename}{Рисунок}}
+\captionsetup[table]{labelsep=endash,justification=centering}
+\captionsetup[figure]{labelsep=endash,justification=centering}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\makeatletter
+\@addtoreset{table}{section}
+\@addtoreset{figure}{section}
+\makeatother
+
+\lstdefinestyle{plantumlstyle}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  keepspaces=true
+}
+
+\begin{document}
+
+\begin{center}
+    \textbf{\Large Система діалогової взаємодії з великими мовними моделями з веб- та консольним інтерфейсами}
+\end{center}
+
+\vspace{0.5cm}
+
+\tableofcontents
+\newpage
+
+\input{chapters/chapter_1_analytical_review}
+\input{chapters/chapter_2_system_design}
+
+\newpage
+\section*{СПИСОК ДЖЕРЕЛ ДЛЯ РОЗДІЛІВ 1--2}
+\addcontentsline{toc}{section}{СПИСОК ДЖЕРЕЛ ДЛЯ РОЗДІЛІВ 1--2}
+
+\begin{enumerate}
+  \item Vaswani A., Shazeer N., Parmar N., Uszkoreit J., Jones L., Gomez A. N., Kaiser L., Polosukhin I. Attention Is All You Need. Advances in Neural Information Processing Systems, 2017. URL: \url{https://arxiv.org/abs/1706.03762}.
+  \item Zhao W. X., Zhou K., Li J., Tang T., Wang X., Hou Y. та ін. A Survey of Large Language Models. arXiv preprint, 2023. URL: \url{https://arxiv.org/abs/2303.18223}.
+  \item Wolf T., Debut L., Sanh V., Chaumond J., Delangue C., Moi A. та ін. Transformers: State-of-the-Art Natural Language Processing. Proceedings of EMNLP: System Demonstrations, 2020. URL: \url{https://aclanthology.org/2020.emnlp-demos.6/}.
+  \item Hugging Face. Transformers documentation. URL: \url{https://huggingface.co/docs/transformers/index}.
+  \item Hugging Face. Chat templates documentation. URL: \url{https://huggingface.co/docs/transformers/en/chat_templating}.
+  \item Hugging Face. Text generation documentation. URL: \url{https://huggingface.co/docs/transformers/en/llm_tutorial}.
+  \item Qwen Team. Qwen2.5 Technical Report. arXiv preprint, 2024. URL: \url{https://arxiv.org/abs/2412.15115}.
+  \item Hugging Face. Qwen2.5-0.5B-Instruct model card. URL: \url{https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct}.
+  \item Flask. Flask Documentation. URL: \url{https://flask.palletsprojects.com/}.
+  \item Flask. Quickstart. URL: \url{https://flask.palletsprojects.com/en/stable/quickstart/}.
+  \item PostgreSQL. PostgreSQL Documentation. URL: \url{https://www.postgresql.org/docs/}.
+  \item PostgreSQL. Tutorial. URL: \url{https://www.postgresql.org/docs/current/tutorial.html}.
+  \item PostgreSQL. Database Concepts. URL: \url{https://www.postgresql.org/docs/current/tutorial-concepts.html}.
+  \item Python Software Foundation. Python Documentation. URL: \url{https://docs.python.org/3/}.
+  \item PlantUML. PlantUML Documentation. URL: \url{https://plantuml.com/}.
+  \item LM Studio. Documentation. URL: \url{https://lmstudio.ai/docs}.
+  \item Ollama. Documentation. URL: \url{https://github.com/ollama/ollama/tree/main/docs}.
+  \item Open WebUI. Documentation. URL: \url{https://docs.openwebui.com/}.
+\end{enumerate}
+
+\end{document}

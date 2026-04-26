@@ -1,0 +1,24 @@
+@startuml
+actor "User" as User
+participant "Web UI" as Web
+participant "Flask route" as Route
+participant "ChatManager" as CM
+participant "PostgresStorage" as Storage
+participant "TransformersLLMService" as LLM
+participant "Local pretrained model" as Model
+
+User -> Web : Enters message
+Web -> Route : POST /chat/{id}/send
+Route -> CM : send_message(chat_id, content)
+CM -> Storage : add_message(chat_id, "user", content)
+Storage --> CM : chat with updated history
+CM -> LLM : generate_response(content, history)
+LLM -> Model : tokenize + generate
+Model --> LLM : generated tokens
+LLM --> CM : assistant_response
+CM -> Storage : add_message(chat_id, "assistant", assistant_response)
+Storage --> CM : updated chat
+CM --> Route : user_message + assistant_message
+Route --> Web : JSON response
+Web --> User : Shows response
+@enduml

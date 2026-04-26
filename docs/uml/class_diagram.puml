@@ -1,0 +1,43 @@
+@startuml
+class ChatManager {
+  - storage: BaseStorage
+  - llm_service: BaseLLMService
+  + create_chat(title)
+  + get_chat(chat_id)
+  + list_chats()
+  + rename_chat(chat_id, title)
+  + delete_chat(chat_id)
+  + send_message(chat_id, content)
+}
+
+class Chat {
+  + id: str
+  + title: str
+  + created_at: str
+  + updated_at: str
+  + messages: list[Message]
+}
+
+class Message {
+  + role: str
+  + content: str
+  + timestamp: str
+}
+
+abstract class BaseStorage
+class PostgresStorage
+abstract class BaseLLMService
+class MockLLMService
+class TransformersLLMService
+class AppConfig
+
+ChatManager --> BaseStorage
+ChatManager --> BaseLLMService
+ChatManager --> Chat
+Chat --> Message
+BaseStorage <|-- PostgresStorage
+BaseLLMService <|-- MockLLMService
+BaseLLMService <|-- TransformersLLMService
+TransformersLLMService --> AppConfig
+PostgresStorage --> AppConfig
+@enduml
