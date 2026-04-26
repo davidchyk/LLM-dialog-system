@@ -7,6 +7,7 @@ from src.core.chat_manager import (
     ChatTitleError,
     DuplicateChatTitleError,
 )
+from src.llm.base import BaseLLMService
 from src.storage.json_storage import JsonStorage
 
 
@@ -158,13 +159,40 @@ def test_send_message_saves_user_and_assistant_messages(tmp_path):
 
     assert result is not None
     updated_chat, response = result
-    assert response == 'Assistant response: you said "Hello"'
+    assert response == 'Mock LLM response: you said "Hello"'
     assert [message.role for message in updated_chat.messages] == [
         "user",
         "assistant",
     ]
     assert updated_chat.messages[0].content == "Hello"
     assert updated_chat.messages[1].content == response
+
+
+def test_send_message_passes_dict_history_to_llm(tmp_path):
+    class SpyLLMService(BaseLLMService):
+        def __init__(self) -> None:
+            self.history = None
+
+        def generate_response(self, user_message, history=None):
+            self.history = history
+            return "Spy response"
+
+    spy_service = SpyLLMService()
+    manager = ChatManager(
+        storage=JsonStorage(tmp_path / "chats"),
+        llm_service=spy_service,
+    )
+    chat = manager.create_chat("History")
+
+    manager.send_message(chat.id, "Hello")
+
+    assert spy_service.history == [
+        {
+            "role": "user",
+            "content": "Hello",
+            "timestamp": spy_service.history[0]["timestamp"],
+        }
+    ]
 
 
 def test_get_missing_chat_returns_none(tmp_path):

@@ -1,2 +1,6 @@
 Flask>=3.0,<4.0
 pytest>=8.0,<9.0
+torch
+transformers
+accelerate
+huggingface_hub

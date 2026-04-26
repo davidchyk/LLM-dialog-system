@@ -54,6 +54,9 @@ def test_send_endpoint_adds_user_and_assistant_messages(tmp_path):
     assert response.status_code == 200
     assert payload["ok"] is True
     assert payload["user_message"]["content"] == "Hello"
+    assert payload["assistant_message"]["content"] == (
+        'Mock LLM response: you said "Hello"'
+    )
     assert payload["assistant_message"]["role"] == "assistant"
     assert manager.get_chat(chat.id) is not None
     assert len(manager.get_chat(chat.id).messages) == 2

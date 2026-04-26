@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from src.core.llm_service import LLMService
 from src.core.models import Chat, utc_now_iso
+from src.llm.base import BaseLLMService
+from src.llm.factory import create_llm_service
 from src.storage.json_storage import JsonStorage
 
 MAX_CHAT_TITLE_LENGTH = 60
@@ -27,11 +28,11 @@ class ChatManager:
     def __init__(
         self,
         storage: JsonStorage | None = None,
-        llm_service: LLMService | None = None,
+        llm_service: BaseLLMService | None = None,
     ) -> None:
 
         self.storage = storage or JsonStorage()
-        self.llm_service = llm_service or LLMService()
+        self.llm_service = llm_service or create_llm_service()
 
     def create_chat(self, title: str | None = None) -> Chat:
 
@@ -66,7 +67,8 @@ class ChatManager:
         if chat is None:
             return None
 
-        assistant_response = self.llm_service.generate_response(content, chat.messages)
+        history = [message.to_dict() for message in chat.messages]
+        assistant_response = self.llm_service.generate_response(content, history)
         updated_chat = self.storage.add_message(chat_id, "assistant", assistant_response)
 
         if updated_chat is None:

@@ -1,0 +1,63 @@
+from __future__ import annotations
+
+import os
+
+
+class ConfigError(ValueError):
+    pass
+
+
+def _parse_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError as error:
+        raise ConfigError(f"{name} must be an integer.") from error
+
+
+def _parse_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError as error:
+        raise ConfigError(f"{name} must be a number.") from error
+
+
+def _parse_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+
+    normalized = value.strip().casefold()
+    if normalized in {"true", "1", "yes", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "off"}:
+        return False
+    raise ConfigError(f"{name} must be a boolean value.")
+
+
+class AppConfig:
+    LLM_BACKEND = os.getenv("LLM_BACKEND", "mock")
+    MODEL_NAME = os.getenv("MODEL_NAME", "models/distilgpt2")
+    MAX_NEW_TOKENS = _parse_int("MAX_NEW_TOKENS", 128)
+    TEMPERATURE = _parse_float("TEMPERATURE", 0.7)
+    TOP_P = _parse_float("TOP_P", 0.9)
+    DO_SAMPLE = _parse_bool("DO_SAMPLE", True)
+    DEVICE = os.getenv("DEVICE", "auto")
+    ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "LLM Dialog System")
+    SYSTEM_PROMPT = os.getenv(
+        "SYSTEM_PROMPT",
+        "You are LLM Dialog System, a local AI assistant running inside Artem's "
+        "course project. You are powered by a locally loaded pretrained language "
+        "model. You are not Claude, not ChatGPT, not Gemini, not Anthropic, and "
+        "not OpenAI. If asked who you are, say that you are LLM Dialog System, "
+        "a local assistant for dialog interaction with large language models. "
+        "Be helpful, concise, and honest.",
+    )
+    PROMPT_HISTORY_LIMIT = _parse_int("PROMPT_HISTORY_LIMIT", 6)
+    REPETITION_PENALTY = _parse_float("REPETITION_PENALTY", 1.1)
+    NO_REPEAT_NGRAM_SIZE = _parse_int("NO_REPEAT_NGRAM_SIZE", 0)
