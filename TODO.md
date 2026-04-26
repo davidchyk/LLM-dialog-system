@@ -1,8 +1,8 @@
-# Roadmap
+# TODO / Roadmap
 
 ## Current Status
 
-The initial MVP is implemented and uses a mock LLM service with local JSON storage.
+The MVP is implemented with web and CLI interfaces, local JSON storage, and configurable LLM backends. The default backend remains mock-based. Transformers inference is available for local models, including `distilgpt2` and the recommended `Qwen/Qwen2.5-0.5B-Instruct` path at `models/qwen2.5-0.5b-instruct`.
 
 ## Completed
 
@@ -17,24 +17,38 @@ The initial MVP is implemented and uses a mock LLM service with local JSON stora
 - [x] Auto-resizing message input
 - [x] Auto-scroll to latest messages
 - [x] Sidebar search
-- [x] Automated tests for core and storage behavior
+- [x] Automated tests for core, storage, web, LLM factory, and prompt building behavior
 
 ## Next Steps
 
 ### MVP Stabilization
 
-- [ ] Add more web regression tests
-- [ ] Improve error handling coverage
-- [ ] Update course documentation
+- [x] Add and improve automated tests
+- [x] Improve error handling
+- [x] Update README documentation
 - [ ] Create GitHub Issues for known bugs and future tasks
 
 ### LLM Integration
 
-- [ ] Add `BaseLLMService` interface
-- [ ] Keep `MockLLMService`
-- [ ] Add `TransformersLLMService`
-- [ ] Load tokenizer and pretrained model
-- [ ] Add generation settings
+- [x] Add `BaseLLMService` interface
+- [x] Keep `MockLLMService`
+- [x] Add LLM backend factory
+- [x] Add backend configuration through environment variables
+- [x] Implement real `TransformersLLMService`
+- [x] Load tokenizer and pretrained model
+- [x] Add generation settings
+- [x] Add chat template support for instruction models
+- [x] Add recommended local instruction model download script
+- [ ] Test better small instruction-tuned models
+- [ ] Test Qwen2.5-1.5B-Instruct
+- [ ] Compare small instruction models
+- [ ] Add model-specific chat template regression tests
+- [ ] Add generation presets
+- [ ] Add UI model/backend indicator
+- [ ] Add streaming generation
+- [ ] Add model loading indicator in UI
+- [ ] Add graceful error page/toast if model loading fails
+- [ ] Add syntax highlighting for rendered code blocks
 - [ ] Add model configuration file
 
 ### PostgreSQL Storage
