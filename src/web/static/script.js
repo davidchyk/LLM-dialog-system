@@ -4,10 +4,36 @@ const MAX_CHAT_TITLE_LENGTH = 60;
 const textareas = document.querySelectorAll("textarea");
 const forms = document.querySelectorAll(".message-form, .landing-form");
 const searchInput = document.querySelector(".chat-search");
-const chatRows = document.querySelectorAll(".sidebar-chat-row");
 const messagesContainer = document.getElementById("messages");
 const messageCount = document.querySelector("[data-message-count]");
 const chatHeaderTitle = document.querySelector("[data-chat-title]");
+const chatEmptyState = document.getElementById("chat-empty-state");
+
+function formatLocalTime(isoTimestamp) {
+  if (!isoTimestamp) {
+    return "";
+  }
+
+  const date = new Date(isoTimestamp);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function formatExistingMessageTimes() {
+  document.querySelectorAll(".message-time[data-timestamp]").forEach((time) => {
+    const formatted = formatLocalTime(time.dataset.timestamp);
+    if (formatted) {
+      time.textContent = formatted;
+    }
+  });
+}
 
 function showToast(message, type = "error", duration = 3500) {
   const container = document.getElementById("toast-container");
@@ -75,9 +101,10 @@ function appendMessage(message) {
   content.className = "message-content";
   content.textContent = message.content;
 
-  const time = document.createElement("div");
+  const time = document.createElement("time");
   time.className = "message-time";
-  time.textContent = message.timestamp;
+  time.dataset.timestamp = message.timestamp;
+  time.textContent = formatLocalTime(message.timestamp);
 
   article.append(role, content, time);
   messagesContainer.append(article);
@@ -169,59 +196,198 @@ forms.forEach((form) => {
 
 if (searchInput) {
   searchInput.addEventListener("input", () => {
-    const query = searchInput.value.trim().toLowerCase();
+    updateSidebarSearchState();
+  });
+}
 
-    chatRows.forEach((row) => {
-      const title = row.dataset.title || "";
-      row.classList.toggle("hidden", !title.includes(query));
-    });
+function updateSidebarSearchState() {
+  const rows = Array.from(document.querySelectorAll(".sidebar-chat-row"));
+  const query = searchInput?.value.trim().toLowerCase() || "";
+  let visibleCount = 0;
+
+  rows.forEach((row) => {
+    const title = row.dataset.title || "";
+    const isVisible = title.includes(query);
+    row.classList.toggle("hidden", !isVisible);
+    if (isVisible) {
+      visibleCount += 1;
+    }
+  });
+
+  if (!chatEmptyState) {
+    return;
+  }
+
+  if (rows.length === 0) {
+    chatEmptyState.textContent = "No chats yet";
+    chatEmptyState.classList.remove("hidden");
+  } else if (visibleCount === 0) {
+    chatEmptyState.textContent = "No matching chats";
+    chatEmptyState.classList.remove("hidden");
+  } else {
+    chatEmptyState.classList.add("hidden");
+  }
+}
+
+function updateChatTitleInDom(chatId, title) {
+  document.querySelectorAll(`.sidebar-chat-row[data-chat-id="${chatId}"]`).forEach((row) => {
+    const link = row.querySelector(".sidebar-chat-link");
+    const titleSpan = link?.querySelector("span");
+    const renameButton = row.querySelector(".rename-chat");
+
+    if (titleSpan) {
+      titleSpan.textContent = title;
+    }
+    if (link) {
+      link.title = title;
+    }
+    if (renameButton) {
+      renameButton.dataset.currentTitle = title;
+    }
+    row.dataset.title = title.toLowerCase();
+  });
+  updateSidebarSearchState();
+
+  if (chatHeaderTitle?.dataset.chatId === chatId) {
+    chatHeaderTitle.textContent = title;
+    chatHeaderTitle.title = title;
+    document.title = `${title} - LLM Dialog System`;
+  }
+
+  const headerRenameButton = document.querySelector("[data-header-rename]");
+  if (headerRenameButton?.dataset.renameChatId === chatId) {
+    headerRenameButton.dataset.currentTitle = title;
+  }
+}
+
+async function commitRename(chatId, oldTitle, nextTitle, renameUrl) {
+  const normalizedTitle = nextTitle.trim();
+
+  if (normalizedTitle === oldTitle.trim()) {
+    return oldTitle;
+  }
+  if (normalizedTitle === "") {
+    throw new Error("Chat title cannot be empty.");
+  }
+  if (normalizedTitle.length > MAX_CHAT_TITLE_LENGTH) {
+    throw new Error("Chat title must be 60 characters or fewer.");
+  }
+
+  const data = await postJson(renameUrl || `/chat/${chatId}/rename`, {
+    title: normalizedTitle,
+  });
+  updateChatTitleInDom(chatId, data.chat.title);
+  return data.chat.title;
+}
+
+function startInlineRename({ chatId, titleElement, currentTitle, renameUrl, mode, editingContainer }) {
+  if (!chatId || !titleElement || titleElement.dataset.editing === "true") {
+    return;
+  }
+
+  const oldTitle = currentTitle || titleElement.textContent.trim();
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = `rename-input inline-title-input ${
+    mode === "header" ? "chat-rename-input" : "sidebar-title-input"
+  }`;
+  input.value = oldTitle;
+  input.maxLength = MAX_CHAT_TITLE_LENGTH;
+
+  let cancelled = false;
+  let finished = false;
+  titleElement.dataset.editing = "true";
+  editingContainer?.classList.add("is-editing");
+
+  const restoreTitle = (title) => {
+    titleElement.textContent = title;
+    titleElement.title = title;
+    delete titleElement.dataset.editing;
+    editingContainer?.classList.remove("is-editing");
+  };
+
+  const finish = async () => {
+    if (finished || cancelled) {
+      return;
+    }
+    finished = true;
+
+    try {
+      const finalTitle = await commitRename(chatId, oldTitle, input.value, renameUrl);
+      restoreTitle(finalTitle);
+    } catch (error) {
+      restoreTitle(oldTitle);
+      showToast(error.message);
+    }
+  };
+
+  const cancel = () => {
+    if (finished) {
+      return;
+    }
+    cancelled = true;
+    finished = true;
+    restoreTitle(oldTitle);
+  };
+
+  input.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      input.blur();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      cancel();
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    finish();
+  });
+
+  titleElement.replaceChildren(input);
+  window.requestAnimationFrame(() => {
+    input.focus();
+    input.select();
   });
 }
 
 document.querySelectorAll(".rename-chat").forEach((button) => {
-  button.addEventListener("click", async (event) => {
+  button.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
 
     const row = button.closest(".sidebar-chat-row");
-    const link = row?.querySelector(".sidebar-chat-link");
-    if (!row || !link) {
+    const titleElement = row?.querySelector(".sidebar-chat-link span");
+    if (!row || !titleElement) {
       return;
     }
 
-    const currentTitle = button.dataset.currentTitle || link.textContent.trim();
-    const nextTitle = window.prompt("Rename chat", currentTitle);
-    if (nextTitle === null) {
-      return;
-    }
+    startInlineRename({
+      chatId: row.dataset.chatId,
+      titleElement,
+      currentTitle: button.dataset.currentTitle || titleElement.textContent.trim(),
+      renameUrl: button.dataset.renameUrl,
+      mode: "sidebar",
+      editingContainer: row,
+    });
+  });
+});
 
-    const normalizedTitle = nextTitle.trim();
-    if (normalizedTitle === "") {
-      showToast("Chat title cannot be empty.");
-      return;
-    }
-    if (normalizedTitle.length > MAX_CHAT_TITLE_LENGTH) {
-      showToast("Chat title must be 60 characters or fewer.");
-      return;
-    }
-
-    try {
-      const data = await postJson(button.dataset.renameUrl, {
-        title: normalizedTitle,
-      });
-      const titleSpan = link.querySelector("span");
-      titleSpan.textContent = data.chat.title;
-      link.title = data.chat.title;
-      row.dataset.title = data.chat.title.toLowerCase();
-      button.dataset.currentTitle = data.chat.title;
-
-      if (row.dataset.active === "true" && chatHeaderTitle) {
-        chatHeaderTitle.textContent = data.chat.title;
-        chatHeaderTitle.title = data.chat.title;
-      }
-    } catch (error) {
-      showToast(error.message);
-    }
+document.querySelector("[data-header-rename]")?.addEventListener("click", (event) => {
+  const button = event.currentTarget;
+  const titleRow = button.closest(".chat-title-row");
+  startInlineRename({
+    chatId: button.dataset.renameChatId,
+    titleElement: chatHeaderTitle,
+    currentTitle: button.dataset.currentTitle || chatHeaderTitle?.textContent.trim() || "",
+    renameUrl: button.dataset.renameUrl,
+    mode: "header",
+    editingContainer: titleRow,
   });
 });
 
@@ -246,6 +412,7 @@ document.querySelectorAll(".delete-chat").forEach((button) => {
       await postJson(button.dataset.deleteUrl);
       const isActive = row.dataset.active === "true";
       row.remove();
+      updateSidebarSearchState();
       if (isActive) {
         window.location.assign("/");
       }
@@ -256,6 +423,9 @@ document.querySelectorAll(".delete-chat").forEach((button) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+  formatExistingMessageTimes();
+  updateSidebarSearchState();
+
   const initialToasts = window.__INITIAL_TOASTS__ || [];
   if (Array.isArray(initialToasts) && initialToasts.length > 0) {
     showToast(initialToasts[initialToasts.length - 1], "error");

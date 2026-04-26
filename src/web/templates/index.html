@@ -22,21 +22,18 @@
       </label>
 
       <nav class="sidebar-list" aria-label="Chats">
-        {% if chats %}
-          {% for chat in chats %}
-            <div class="sidebar-chat-row" data-title="{{ chat.title|lower }}" data-chat-id="{{ chat.id }}">
-              <a class="sidebar-chat-link" href="{{ url_for('chat_page', chat_id=chat.id) }}" title="{{ chat.title }}">
-                <span>{{ chat.title }}</span>
-              </a>
-              <div class="chat-actions">
-                <button type="button" class="chat-action rename-chat" aria-label="Rename chat" data-rename-url="{{ url_for('rename_chat', chat_id=chat.id) }}" data-current-title="{{ chat.title }}">✎</button>
-                <button type="button" class="chat-action delete-chat" aria-label="Delete chat" data-delete-url="{{ url_for('delete_chat', chat_id=chat.id) }}">×</button>
-              </div>
+        {% for chat in chats %}
+          <div class="sidebar-chat-row" data-title="{{ chat.title|lower }}" data-chat-id="{{ chat.id }}">
+            <a class="sidebar-chat-link" href="{{ url_for('chat_page', chat_id=chat.id) }}" title="{{ chat.title }}">
+              <span>{{ chat.title }}</span>
+            </a>
+            <div class="chat-actions">
+              <button type="button" class="chat-action rename-chat" aria-label="Rename chat" data-rename-url="{{ url_for('rename_chat', chat_id=chat.id) }}" data-current-title="{{ chat.title }}">✎</button>
+              <button type="button" class="chat-action delete-chat" aria-label="Delete chat" data-delete-url="{{ url_for('delete_chat', chat_id=chat.id) }}">×</button>
             </div>
-          {% endfor %}
-        {% else %}
-          <p class="sidebar-empty">No chats yet</p>
-        {% endif %}
+          </div>
+        {% endfor %}
+        <p id="chat-empty-state" class="chat-empty-state">No chats yet</p>
       </nav>
     </aside>
 

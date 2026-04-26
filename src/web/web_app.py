@@ -117,7 +117,7 @@ def _message_to_response(message: Message) -> dict[str, str]:
     return {
         "role": message.role,
         "content": message.content,
-        "timestamp": _format_timestamp(message.timestamp),
+        "timestamp": message.timestamp,
     }
 
 

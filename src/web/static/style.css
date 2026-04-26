@@ -199,6 +199,11 @@ textarea::placeholder {
   pointer-events: auto;
 }
 
+.sidebar-chat-row.is-editing .chat-actions,
+.chat-title-row.is-editing .header-rename-button {
+  display: none;
+}
+
 .chat-action {
   align-items: center;
   background: transparent;
@@ -224,10 +229,11 @@ button:disabled {
   opacity: 0.65;
 }
 
-.sidebar-empty {
+.chat-empty-state {
   color: var(--muted-2);
   font-size: 14px;
-  margin: 10px 0 0;
+  margin: 0;
+  padding: 10px 12px;
 }
 
 .main-area {
@@ -259,8 +265,9 @@ button:disabled {
   font-size: clamp(22px, 3vw, 30px);
   letter-spacing: 0;
   line-height: 1.1;
-  margin: 0 0 10px;
+  margin: 0;
   max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -270,6 +277,10 @@ button:disabled {
 .chat-topbar p {
   color: var(--muted);
   margin: 0;
+}
+
+.landing h1 {
+  margin-bottom: 10px;
 }
 
 .landing-form {
@@ -358,6 +369,34 @@ button:disabled {
 
 .chat-topbar > div {
   min-width: 0;
+}
+
+.chat-title-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.header-rename-button {
+  align-items: center;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 auto;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+.header-rename-button:hover {
+  background: var(--panel-hover);
+  color: var(--text);
 }
 
 .messages {
@@ -495,6 +534,44 @@ button:disabled {
 
 .hidden {
   display: none;
+}
+
+.inline-title-input,
+.sidebar-title-input,
+.chat-rename-input,
+.rename-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  height: auto;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+  margin: 0 !important;
+  min-width: 0;
+  outline: none !important;
+  padding: 0 !important;
+  width: 100%;
+}
+
+.inline-title-input:focus,
+.sidebar-title-input:focus,
+.chat-rename-input:focus,
+.rename-input:focus {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.is-editing {
+  background: inherit;
 }
 
 @media (max-width: 760px) {
