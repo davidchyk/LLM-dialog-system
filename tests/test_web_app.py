@@ -7,7 +7,7 @@ from src.web.web_app import create_app
 
 def make_client(tmp_path):
     manager = ChatManager(storage=JsonStorage(tmp_path / "chats"))
-    app = create_app(manager)
+    app = create_app(manager, models_dir=tmp_path / "models")
     app.config.update(TESTING=True)
     return app.test_client(), manager
 
@@ -19,6 +19,22 @@ def test_home_page_loads(tmp_path):
 
     assert response.status_code == 200
     assert b"LLM Dialog System" in response.data
+    assert b"Backend" in response.data
+    assert b"Preset" in response.data
+    assert b"No local models found" in response.data
+
+
+def test_home_page_lists_local_models(tmp_path):
+    model_dir = tmp_path / "models" / "qwen-test"
+    model_dir.mkdir(parents=True)
+    (model_dir / "config.json").write_text("{}", encoding="utf-8")
+    (model_dir / "model.safetensors").write_text("fake", encoding="utf-8")
+    client, _manager = make_client(tmp_path)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert b"qwen-test" in response.data
 
 
 def test_chat_page_loads(tmp_path):

@@ -3,18 +3,28 @@ from __future__ import annotations
 # Flask is the current web interface layer and can be extended later if needed.
 
 from datetime import datetime
+from pathlib import Path
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 
+from src.config import AppConfig
 from src.core.chat_manager import ChatManager, ChatNotFoundError, ChatTitleError
 from src.core.models import Message
+from src.llm.model_registry import list_local_models
 
 
-def create_app(chat_manager: ChatManager | None = None) -> Flask:
+def create_app(
+    chat_manager: ChatManager | None = None,
+    models_dir: str | Path = "models",
+) -> Flask:
 
     app = Flask(__name__)
     app.secret_key = "dev-secret-key"
     manager = chat_manager or ChatManager()
+
+    @app.context_processor
+    def inject_ui_context() -> dict[str, object]:
+        return _get_ui_context(models_dir)
 
     @app.template_filter("time_short")
     def time_short(value: str) -> str:
@@ -127,3 +137,22 @@ def _format_timestamp(value: str) -> str:
     except ValueError:
         return value[:5] if len(value) >= 5 else value
     return parsed.strftime("%H:%M")
+
+
+def _get_ui_context(models_dir: str | Path = "models") -> dict[str, object]:
+    backend = AppConfig.LLM_BACKEND.strip().casefold() or "mock"
+    model_name = AppConfig.MODEL_NAME if backend == "transformers" else "mock"
+    return {
+        "llm_backend": backend,
+        "model_name": model_name,
+        "model_display_name": _model_display_name(model_name),
+        "generation_preset": AppConfig.GENERATION_PRESET,
+        "local_models": list_local_models(models_dir),
+    }
+
+
+def _model_display_name(model_name: str) -> str:
+    if not model_name:
+        return "mock"
+    normalized = model_name.replace("\\", "/").rstrip("/")
+    return normalized.split("/")[-1] or normalized

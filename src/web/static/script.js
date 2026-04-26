@@ -89,6 +89,22 @@ function renderExistingAssistantMarkdown() {
     });
 }
 
+function typesetMath(element) {
+  if (!element || !window.MathJax || !window.MathJax.typesetPromise) {
+    return;
+  }
+
+  window.MathJax.typesetPromise([element]).catch(() => {
+    // Math rendering should never block the chat UI.
+  });
+}
+
+function typesetExistingAssistantMath() {
+  document.querySelectorAll(".message.assistant").forEach((message) => {
+    typesetMath(message);
+  });
+}
+
 function showToast(message, type = "error", duration = 3500) {
   const container = document.getElementById("toast-container");
   if (!container || !message) {
@@ -172,6 +188,9 @@ function appendMessage(message) {
   document.querySelector("[data-empty-chat]")?.remove();
   const article = createMessageElement(message);
   messagesContainer.append(article);
+  if (message.role === "assistant") {
+    typesetMath(article);
+  }
   return article;
 }
 
@@ -230,6 +249,7 @@ function resolvePendingAssistantMessage(pendingElement, message) {
     time.dataset.timestamp = message.timestamp;
     time.textContent = formatLocalTime(message.timestamp);
   }
+  typesetMath(target);
 }
 
 function markPendingAssistantError(pendingElement) {
@@ -576,6 +596,7 @@ document.querySelectorAll(".delete-chat").forEach((button) => {
 document.addEventListener("DOMContentLoaded", () => {
   formatExistingMessageTimes();
   renderExistingAssistantMarkdown();
+  typesetExistingAssistantMath();
   updateSidebarSearchState();
 
   const initialToasts = window.__INITIAL_TOASTS__ || [];

@@ -18,6 +18,8 @@ This is a local Python MVP for dialog interaction with large language models. Th
 * Optional local Transformers backend with chat-template support for instruction models
 * Sidebar search, toast notifications, auto-resizing input, and auto-scroll
 * Assistant Markdown/code block rendering in the web UI
+* Assistant LaTeX/math rendering in the web UI
+* Backend/model/preset indicator and local model discovery in the sidebar
 
 ## Project Structure
 
@@ -198,9 +200,62 @@ $env:SYSTEM_PROMPT="You are LLM Dialog System, a local AI assistant running insi
 
 The web UI renders assistant Markdown/code blocks locally with escaping. User messages remain plain text.
 
+## Generation Presets
+
+Transformers generation can be tuned with `GENERATION_PRESET`.
+
+Available presets:
+
+* `precise` - lower randomness for more focused answers.
+* `balanced` - default behavior for regular chat.
+* `creative` - higher randomness and longer answers.
+
+Windows PowerShell examples:
+
+```powershell
+$env:GENERATION_PRESET="precise"
+python app.py
+```
+
+```powershell
+$env:GENERATION_PRESET="creative"
+python app.py
+```
+
+Explicit generation variables such as `MAX_NEW_TOKENS`, `TEMPERATURE`, `TOP_P`, `DO_SAMPLE`, and `REPETITION_PENALTY` override preset defaults.
+
+## Local Model Discovery
+
+The web UI scans the local `models/` directory and shows available model folders in the sidebar. A folder is considered a local model when it contains `config.json` and model weights such as `*.safetensors` or `pytorch_model.bin`.
+
+Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh or restart the app to see it in the sidebar.
+
+To use a discovered model:
+
+```powershell
+$env:LLM_BACKEND="transformers"
+$env:MODEL_NAME="models/qwen2.5-0.5b-instruct"
+python app.py
+```
+
+The UI lists local models only. It does not hot-swap loaded models at runtime yet.
+
+## Math Rendering
+
+Assistant responses can render LaTeX math in the web UI:
+
+```text
+\( F = ma \)
+\[ E = mc^2 \]
+```
+
+The web UI uses MathJax from CDN only for math rendering in the local browser interface.
+
 ## Current Limitations
 
 * `distilgpt2` response quality can be poor because it is not a chat-tuned model.
 * `Qwen2.5-0.5B-Instruct` is small, so response quality is still limited.
+* Runtime model switching is not implemented yet. Set `MODEL_NAME` and restart the app.
+* Responses are not streamed yet.
 * PostgreSQL storage is planned for a later stage.
 * LoRA/QLoRA support is planned for a later stage.

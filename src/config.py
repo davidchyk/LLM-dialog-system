@@ -7,6 +7,31 @@ class ConfigError(ValueError):
     pass
 
 
+GENERATION_PRESETS = {
+    "precise": {
+        "max_new_tokens": 128,
+        "temperature": 0.2,
+        "top_p": 0.8,
+        "do_sample": True,
+        "repetition_penalty": 1.1,
+    },
+    "balanced": {
+        "max_new_tokens": 128,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "do_sample": True,
+        "repetition_penalty": 1.05,
+    },
+    "creative": {
+        "max_new_tokens": 180,
+        "temperature": 0.95,
+        "top_p": 0.95,
+        "do_sample": True,
+        "repetition_penalty": 1.05,
+    },
+}
+
+
 def _parse_int(name: str, default: int) -> int:
     value = os.getenv(name)
     if value is None:
@@ -40,13 +65,26 @@ def _parse_bool(name: str, default: bool) -> bool:
     raise ConfigError(f"{name} must be a boolean value.")
 
 
+def _parse_generation_preset(default: str = "balanced") -> str:
+    value = os.getenv("GENERATION_PRESET", default).strip().casefold()
+    if value in GENERATION_PRESETS:
+        return value
+    print(
+        f"Warning: unsupported GENERATION_PRESET '{value}'. "
+        f"Falling back to '{default}'."
+    )
+    return default
+
+
 class AppConfig:
     LLM_BACKEND = os.getenv("LLM_BACKEND", "mock")
     MODEL_NAME = os.getenv("MODEL_NAME", "models/distilgpt2")
-    MAX_NEW_TOKENS = _parse_int("MAX_NEW_TOKENS", 128)
-    TEMPERATURE = _parse_float("TEMPERATURE", 0.7)
-    TOP_P = _parse_float("TOP_P", 0.9)
-    DO_SAMPLE = _parse_bool("DO_SAMPLE", True)
+    GENERATION_PRESET = _parse_generation_preset()
+    _PRESET_VALUES = GENERATION_PRESETS[GENERATION_PRESET]
+    MAX_NEW_TOKENS = _parse_int("MAX_NEW_TOKENS", _PRESET_VALUES["max_new_tokens"])
+    TEMPERATURE = _parse_float("TEMPERATURE", _PRESET_VALUES["temperature"])
+    TOP_P = _parse_float("TOP_P", _PRESET_VALUES["top_p"])
+    DO_SAMPLE = _parse_bool("DO_SAMPLE", _PRESET_VALUES["do_sample"])
     DEVICE = os.getenv("DEVICE", "auto")
     ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "LLM Dialog System")
     SYSTEM_PROMPT = os.getenv(
@@ -59,5 +97,8 @@ class AppConfig:
         "Be helpful, concise, and honest.",
     )
     PROMPT_HISTORY_LIMIT = _parse_int("PROMPT_HISTORY_LIMIT", 6)
-    REPETITION_PENALTY = _parse_float("REPETITION_PENALTY", 1.1)
+    REPETITION_PENALTY = _parse_float(
+        "REPETITION_PENALTY",
+        _PRESET_VALUES["repetition_penalty"],
+    )
     NO_REPEAT_NGRAM_SIZE = _parse_int("NO_REPEAT_NGRAM_SIZE", 0)

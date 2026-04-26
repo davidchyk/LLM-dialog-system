@@ -71,7 +71,7 @@ button {
   background: var(--sidebar);
   border-right: 1px solid var(--border);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100vh;
   padding: 14px;
   position: sticky;
@@ -141,6 +141,7 @@ textarea::placeholder {
 }
 
 .sidebar-list {
+  min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -234,6 +235,76 @@ button:disabled {
   font-size: 14px;
   margin: 0;
   padding: 10px 12px;
+}
+
+.llm-status {
+  border-top: 1px solid var(--border);
+  color: var(--muted-2);
+  display: grid;
+  font-size: 12px;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.llm-status-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.llm-status-row strong {
+  color: var(--muted);
+  font-weight: 550;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-models {
+  display: grid;
+  gap: 3px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.local-models > p {
+  color: var(--muted-2);
+  font-size: 12px;
+  margin: 0 0 2px;
+}
+
+.local-model-item {
+  align-items: center;
+  border-radius: 8px;
+  color: var(--muted-2);
+  display: flex;
+  min-height: 28px;
+  min-width: 0;
+  padding: 5px 8px;
+}
+
+.local-model-item.active {
+  background: var(--panel-hover);
+  color: var(--text);
+}
+
+.local-model-item span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-model-empty {
+  color: var(--muted-2);
+  font-size: 12px;
+  margin: 0;
+  padding: 4px 2px;
 }
 
 .main-area {

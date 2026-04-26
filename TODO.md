@@ -39,16 +39,23 @@ The MVP is implemented with web and CLI interfaces, local JSON storage, and conf
 - [x] Add generation settings
 - [x] Add chat template support for instruction models
 - [x] Add recommended local instruction model download script
+- [x] Add Math/LaTeX rendering in web UI
+- [x] Add UI backend/model indicator
+- [x] Add generation presets
+- [x] Add local model discovery from `models/` directory
 - [ ] Test better small instruction-tuned models
 - [ ] Test Qwen2.5-1.5B-Instruct
 - [ ] Compare small instruction models
 - [ ] Add model-specific chat template regression tests
-- [ ] Add generation presets
-- [ ] Add UI model/backend indicator
+- [ ] Add runtime model switching without restarting app
+- [ ] Add model loading/unloading mechanism
+- [ ] Add generation preset selector endpoint
+- [ ] Add model health/status checks
 - [ ] Add streaming generation
 - [ ] Add model loading indicator in UI
 - [ ] Add graceful error page/toast if model loading fails
 - [ ] Add syntax highlighting for rendered code blocks
+- [ ] Add KaTeX/MathJax offline mode
 - [ ] Add model configuration file
 
 ### PostgreSQL Storage

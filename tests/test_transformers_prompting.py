@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.config import ConfigError, _parse_bool, _parse_int
+import src.config as config
 from src.llm.transformers_service import TransformersLLMService
 
 
@@ -145,17 +145,17 @@ def test_default_system_prompt_defines_project_identity():
 
 def test_bool_config_parser_accepts_common_values(monkeypatch):
     monkeypatch.setenv("DO_SAMPLE", "yes")
-    assert _parse_bool("DO_SAMPLE", False) is True
+    assert config._parse_bool("DO_SAMPLE", False) is True
 
     monkeypatch.setenv("DO_SAMPLE", "off")
-    assert _parse_bool("DO_SAMPLE", True) is False
+    assert config._parse_bool("DO_SAMPLE", True) is False
 
 
 def test_config_parsers_raise_clear_errors(monkeypatch):
     monkeypatch.setenv("PROMPT_HISTORY_LIMIT", "not-int")
-    with pytest.raises(ConfigError, match="must be an integer"):
-        _parse_int("PROMPT_HISTORY_LIMIT", 6)
+    with pytest.raises(config.ConfigError, match="must be an integer"):
+        config._parse_int("PROMPT_HISTORY_LIMIT", 6)
 
     monkeypatch.setenv("DO_SAMPLE", "maybe")
-    with pytest.raises(ConfigError, match="must be a boolean"):
-        _parse_bool("DO_SAMPLE", True)
+    with pytest.raises(config.ConfigError, match="must be a boolean"):
+        config._parse_bool("DO_SAMPLE", True)
