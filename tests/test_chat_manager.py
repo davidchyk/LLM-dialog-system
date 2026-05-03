@@ -8,11 +8,12 @@ from src.core.chat_manager import (
     DuplicateChatTitleError,
 )
 from src.llm.base import BaseLLMService
+from src.llm.mock_service import MockLLMService
 from tests.in_memory_storage import InMemoryStorage
 
 
 def make_manager(tmp_path) -> ChatManager:
-    return ChatManager(storage=InMemoryStorage())
+    return ChatManager(storage=InMemoryStorage(), llm_service=MockLLMService())
 
 
 def test_create_chat_with_custom_title(tmp_path):

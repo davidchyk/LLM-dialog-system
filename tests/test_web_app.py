@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from src.core.chat_manager import ChatManager
+from src.llm.mock_service import MockLLMService
 from src.web.web_app import create_app
 from tests.in_memory_storage import InMemoryStorage
 
 
 def make_client(tmp_path):
-    manager = ChatManager(storage=InMemoryStorage())
+    manager = ChatManager(storage=InMemoryStorage(), llm_service=MockLLMService())
     app = create_app(manager, models_dir=tmp_path / "models")
     app.config.update(TESTING=True)
     return app.test_client(), manager
@@ -88,3 +89,37 @@ def test_rename_endpoint_rejects_duplicate_title(tmp_path):
     assert response.status_code == 400
     assert response.get_json()["ok"] is False
     assert "already exists" in response.get_json()["error"]
+
+
+def test_model_status_endpoint_reports_runtime_state(tmp_path):
+    client, _manager = make_client(tmp_path)
+
+    response = client.get("/api/model/status")
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["ok"] is True
+    assert payload["status"]["backend"] == "mock"
+    assert payload["status"]["model_display_name"] == "mock"
+    assert payload["status"]["ready"] is True
+
+
+def test_generation_preset_endpoint_accepts_known_preset(tmp_path):
+    client, _manager = make_client(tmp_path)
+
+    response = client.post("/api/generation-preset", json={"preset": "creative"})
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["ok"] is True
+    assert payload["generation_preset"] == "creative"
+    assert payload["settings"]["max_new_tokens"] == 180
+
+
+def test_generation_preset_endpoint_rejects_unknown_preset(tmp_path):
+    client, _manager = make_client(tmp_path)
+
+    response = client.post("/api/generation-preset", json={"preset": "fast"})
+
+    assert response.status_code == 400
+    assert response.get_json()["ok"] is False

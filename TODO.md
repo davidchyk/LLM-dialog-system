@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The MVP is implemented with web and CLI interfaces, local JSON storage, and configurable LLM backends. The default backend remains mock-based. Transformers inference is available for local models, including `distilgpt2` and the recommended `Qwen/Qwen2.5-0.5B-Instruct` path at `models/qwen2.5-0.5b-instruct`.
+The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and configurable LLM backends. The default LLM backend remains mock-based. Transformers inference is available for local models, including `distilgpt2` and the recommended `Qwen/Qwen2.5-0.5B-Instruct` path at `models/qwen2.5-0.5b-instruct`. Course project documentation has the first two chapters, UML diagrams, and generated diagram images.
 
 ## Completed
 
@@ -10,7 +10,7 @@ The MVP is implemented with web and CLI interfaces, local JSON storage, and conf
 - [x] CLI mode
 - [x] Chat creation and selection
 - [x] Chat rename and delete
-- [x] Local JSON storage
+- [x] PostgreSQL storage
 - [x] Mock LLM service
 - [x] Dark minimal chat UI
 - [x] Toast notifications
@@ -49,21 +49,27 @@ The MVP is implemented with web and CLI interfaces, local JSON storage, and conf
 - [ ] Add model-specific chat template regression tests
 - [ ] Add runtime model switching without restarting app
 - [ ] Add model loading/unloading mechanism
-- [ ] Add generation preset selector endpoint
-- [ ] Add model health/status checks
+- [x] Add generation preset selector endpoint
+- [x] Add model health/status checks
 - [ ] Add streaming generation
 - [ ] Add model loading indicator in UI
 - [ ] Add graceful error page/toast if model loading fails
-- [ ] Add syntax highlighting for rendered code blocks
+- [x] Add syntax highlighting for rendered code blocks
 - [ ] Add KaTeX/MathJax offline mode
 - [ ] Add model configuration file
 
 ### PostgreSQL Storage
 
-- [ ] Design database schema
-- [ ] Add `PostgresStorage`
-- [ ] Keep `JSONStorage` as fallback
-- [ ] Add storage backend selection
+- [x] Add storage abstraction
+- [x] Design database schema
+- [x] Add `PostgresStorage`
+- [x] Add storage backend selection
+- [x] Remove legacy JSON storage backend
+- [ ] Add runtime storage management UI
+- [ ] Add database migrations with Alembic
+- [ ] Add user accounts/auth if ever needed
+- [ ] Add message search
+- [ ] Add conversation export
 
 ### LoRA/QLoRA
 
@@ -74,8 +80,8 @@ The MVP is implemented with web and CLI interfaces, local JSON storage, and conf
 
 ### Course Project Documentation
 
-- [ ] Add architecture diagram
+- [x] Add architecture diagram
 - [ ] Add screenshots
-- [ ] Describe implementation
+- [x] Describe implementation
 - [ ] Describe testing
 - [ ] Write final explanatory note

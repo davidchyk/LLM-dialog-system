@@ -45,6 +45,24 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function highlightCode(code) {
+  const tokenPattern =
+    /(&quot;[^&]*(?:&(?!quot;)[^&]*)*&quot;|&#039;[^&]*(?:&(?!#039;)[^&]*)*&#039;|\/\/.*|#.*|\b(?:class|def|return|if|else|elif|for|while|try|except|finally|with|from|import|as|const|let|var|function|async|await|return|new|true|false|null|None|SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|TABLE|JOIN|LEFT|RIGHT|INNER|ORDER|GROUP|BY|LIMIT)\b|\b\d+(?:\.\d+)?\b)/g;
+
+  return code.replace(tokenPattern, (token) => {
+    if (token.startsWith("&quot;") || token.startsWith("&#039;")) {
+      return `<span class="code-token string">${token}</span>`;
+    }
+    if (token.startsWith("//") || token.startsWith("#")) {
+      return `<span class="code-token comment">${token}</span>`;
+    }
+    if (/^\d/.test(token)) {
+      return `<span class="code-token number">${token}</span>`;
+    }
+    return `<span class="code-token keyword">${token}</span>`;
+  });
+}
+
 function renderAssistantMarkdown(text) {
   const codeBlocks = [];
   let escaped = escapeHtml(text);
@@ -52,8 +70,9 @@ function renderAssistantMarkdown(text) {
   escaped = escaped.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_match, language, code) => {
     const index = codeBlocks.length;
     const languageClass = language ? ` language-${language}` : "";
+    const highlightedCode = highlightCode(code.trim());
     codeBlocks.push(
-      `<pre><code class="${languageClass.trim()}">${code.trim()}</code></pre>`
+      `<pre><code class="${languageClass.trim()}">${highlightedCode}</code></pre>`
     );
     return `@@CODE_BLOCK_${index}@@`;
   });

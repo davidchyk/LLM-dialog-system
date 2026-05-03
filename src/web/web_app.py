@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 
-from src.config import AppConfig
+from src.config import AppConfig, GENERATION_PRESETS
 from src.core.chat_manager import ChatManager, ChatNotFoundError, ChatTitleError
 from src.core.models import Message
 from src.llm.model_registry import list_local_models
@@ -120,6 +120,34 @@ def create_app(
             return jsonify({"ok": False, "error": "Chat was not found."}), 404
         return jsonify({"ok": True})
 
+    @app.get("/api/model/status")
+    def model_status():
+        return jsonify({"ok": True, "status": _model_status(manager, models_dir)})
+
+    @app.post("/api/generation-preset")
+    def set_generation_preset():
+        data = request.get_json(silent=True) or {}
+        preset = str(data.get("preset", "")).strip().casefold()
+        if preset not in GENERATION_PRESETS:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": (
+                        "Unsupported generation preset. "
+                        f"Use one of: {', '.join(GENERATION_PRESETS)}."
+                    ),
+                }
+            ), 400
+
+        _apply_generation_preset(manager, preset)
+        return jsonify(
+            {
+                "ok": True,
+                "generation_preset": preset,
+                "settings": GENERATION_PRESETS[preset],
+            }
+        )
+
     return app
 
 
@@ -156,3 +184,64 @@ def _model_display_name(model_name: str) -> str:
         return "mock"
     normalized = model_name.replace("\\", "/").rstrip("/")
     return normalized.split("/")[-1] or normalized
+
+
+def _model_status(
+    manager: ChatManager,
+    models_dir: str | Path = "models",
+) -> dict[str, object]:
+    context = _get_ui_context(models_dir)
+    service = manager.llm_service
+    service_name = service.__class__.__name__
+    is_transformers = service_name == "TransformersLLMService"
+    backend = "transformers" if is_transformers else "mock"
+    model_name = (
+        getattr(service, "model_name_or_path", context["model_name"])
+        if is_transformers
+        else "mock"
+    )
+    is_ready = not is_transformers or (
+        getattr(service, "model", None) is not None
+        and getattr(service, "tokenizer", None) is not None
+    )
+
+    return {
+        "backend": backend,
+        "model_name": model_name,
+        "model_display_name": _model_display_name(str(model_name)),
+        "generation_preset": context["generation_preset"],
+        "service": service_name,
+        "ready": is_ready,
+        "state": "ready" if is_ready else "not_loaded",
+        "local_models": [
+            {
+                "name": model.name,
+                "path": model.path,
+                "has_config": model.has_config,
+                "has_weights": model.has_weights,
+                "has_tokenizer": model.has_tokenizer,
+            }
+            for model in context["local_models"]
+        ],
+    }
+
+
+def _apply_generation_preset(manager: ChatManager, preset: str) -> None:
+    values = GENERATION_PRESETS[preset]
+    AppConfig.GENERATION_PRESET = preset
+    AppConfig.MAX_NEW_TOKENS = values["max_new_tokens"]
+    AppConfig.TEMPERATURE = values["temperature"]
+    AppConfig.TOP_P = values["top_p"]
+    AppConfig.DO_SAMPLE = values["do_sample"]
+    AppConfig.REPETITION_PENALTY = values["repetition_penalty"]
+
+    service = manager.llm_service
+    for attribute, value in (
+        ("max_new_tokens", AppConfig.MAX_NEW_TOKENS),
+        ("temperature", AppConfig.TEMPERATURE),
+        ("top_p", AppConfig.TOP_P),
+        ("do_sample", AppConfig.DO_SAMPLE),
+        ("repetition_penalty", AppConfig.REPETITION_PENALTY),
+    ):
+        if hasattr(service, attribute):
+            setattr(service, attribute, value)

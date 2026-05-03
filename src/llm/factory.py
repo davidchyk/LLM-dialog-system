@@ -12,7 +12,7 @@ class UnsupportedLLMBackendError(ValueError):
 
 
 def create_llm_service(backend: str | None = None) -> BaseLLMService:
-    backend_name = (backend or os.getenv("LLM_BACKEND") or AppConfig.LLM_BACKEND).strip()
+    backend_name = (backend or os.getenv("LLM_BACKEND") or "mock").strip()
     normalized_backend = backend_name.casefold() or "mock"
 
     if normalized_backend == "mock":

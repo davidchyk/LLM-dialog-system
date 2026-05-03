@@ -521,6 +521,22 @@ button:disabled {
   font-size: 13px;
 }
 
+.code-token.keyword {
+  color: #7dd3fc;
+}
+
+.code-token.string {
+  color: #86efac;
+}
+
+.code-token.comment {
+  color: #94a3b8;
+}
+
+.code-token.number {
+  color: #fca5a5;
+}
+
 .message.assistant :not(pre) > code {
   background: #0b0b0b;
   border: 1px solid var(--border);
