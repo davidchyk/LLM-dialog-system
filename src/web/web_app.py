@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 
 from src.config import AppConfig, GENERATION_PRESETS
 from src.core.chat_manager import ChatManager, ChatNotFoundError, ChatTitleError
@@ -120,6 +120,21 @@ def create_app(
             return jsonify({"ok": False, "error": "Chat was not found."}), 404
         return jsonify({"ok": True})
 
+    @app.get("/chat/<chat_id>/export")
+    def export_chat(chat_id: str):
+        chat = manager.get_chat(chat_id)
+        if chat is None:
+            return Response("Chat was not found.", status=404, mimetype="text/plain")
+
+        filename = f"{_safe_export_filename(chat.title)}.md"
+        return Response(
+            _chat_to_markdown(chat),
+            mimetype="text/markdown; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+
     @app.get("/api/model/status")
     def model_status():
         return jsonify({"ok": True, "status": _model_status(manager, models_dir)})
@@ -175,6 +190,7 @@ def _get_ui_context(models_dir: str | Path = "models") -> dict[str, object]:
         "model_name": model_name,
         "model_display_name": _model_display_name(model_name),
         "generation_preset": AppConfig.GENERATION_PRESET,
+        "generation_presets": list(GENERATION_PRESETS),
         "local_models": list_local_models(models_dir),
     }
 
@@ -186,6 +202,41 @@ def _model_display_name(model_name: str) -> str:
     return normalized.split("/")[-1] or normalized
 
 
+def _safe_export_filename(title: str) -> str:
+    safe = "".join(
+        character if character.isalnum() or character in {"-", "_"} else "-"
+        for character in title.strip().lower()
+    ).strip("-")
+    while "--" in safe:
+        safe = safe.replace("--", "-")
+    return safe or "chat"
+
+
+def _chat_to_markdown(chat) -> str:
+    lines = [
+        f"# {chat.title}",
+        "",
+        f"- Created: {chat.created_at}",
+        f"- Updated: {chat.updated_at}",
+        "",
+    ]
+
+    for message in chat.messages:
+        role = "User" if message.role == "user" else "Assistant"
+        lines.extend(
+            [
+                f"## {role}",
+                "",
+                message.content,
+                "",
+                f"_Sent at: {message.timestamp}_",
+                "",
+            ]
+        )
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _model_status(
     manager: ChatManager,
     models_dir: str | Path = "models",
@@ -194,16 +245,24 @@ def _model_status(
     service = manager.llm_service
     service_name = service.__class__.__name__
     is_transformers = service_name == "TransformersLLMService"
-    backend = "transformers" if is_transformers else "mock"
+    load_error = getattr(service, "load_error", "")
+    backend = getattr(
+        service,
+        "backend",
+        "transformers" if is_transformers else "mock",
+    )
     model_name = (
         getattr(service, "model_name_or_path", context["model_name"])
-        if is_transformers
+        if is_transformers or load_error
         else "mock"
     )
     is_ready = not is_transformers or (
         getattr(service, "model", None) is not None
         and getattr(service, "tokenizer", None) is not None
     )
+    if load_error:
+        is_ready = False
+    state = "error" if load_error else ("ready" if is_ready else "not_loaded")
 
     return {
         "backend": backend,
@@ -212,7 +271,8 @@ def _model_status(
         "generation_preset": context["generation_preset"],
         "service": service_name,
         "ready": is_ready,
-        "state": "ready" if is_ready else "not_loaded",
+        "state": state,
+        "error": load_error,
         "local_models": [
             {
                 "name": model.name,

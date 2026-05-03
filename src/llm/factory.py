@@ -5,6 +5,7 @@ import os
 from src.config import AppConfig
 from src.llm.base import BaseLLMService
 from src.llm.mock_service import MockLLMService
+from src.llm.unavailable_service import UnavailableLLMService
 
 
 class UnsupportedLLMBackendError(ValueError):
@@ -19,7 +20,14 @@ def create_llm_service(backend: str | None = None) -> BaseLLMService:
         return MockLLMService()
 
     if normalized_backend == "transformers":
-        return _create_transformers_service()
+        try:
+            return _create_transformers_service()
+        except RuntimeError as error:
+            return UnavailableLLMService(
+                backend=normalized_backend,
+                model_name_or_path=AppConfig.MODEL_NAME,
+                load_error=str(error),
+            )
 
     raise UnsupportedLLMBackendError(
         f"Unsupported LLM backend: {backend_name}. Supported backends: mock, transformers."

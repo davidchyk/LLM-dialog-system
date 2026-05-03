@@ -58,8 +58,16 @@
           <strong title="{{ model_name }}">{{ model_display_name }}</strong>
         </div>
         <div class="llm-status-row">
-          <span>Preset</span>
-          <strong title="{{ generation_preset }}">{{ generation_preset }}</strong>
+          <span>Status</span>
+          <strong class="model-state loading" data-model-state title="Checking model status">checking</strong>
+        </div>
+        <div class="llm-status-row">
+          <label for="generation-preset">Preset</label>
+          <select id="generation-preset" class="generation-preset-select" data-generation-preset>
+            {% for preset in generation_presets %}
+              <option value="{{ preset }}" {% if preset == generation_preset %}selected{% endif %}>{{ preset }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="local-models">
           <p>Local models</p>

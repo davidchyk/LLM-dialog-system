@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.core.chat_manager import ChatManager
 from src.llm.mock_service import MockLLMService
+from src.llm.unavailable_service import UnavailableLLMService
 from src.web.web_app import create_app
 from tests.in_memory_storage import InMemoryStorage
 
@@ -91,6 +92,33 @@ def test_rename_endpoint_rejects_duplicate_title(tmp_path):
     assert "already exists" in response.get_json()["error"]
 
 
+def test_export_chat_returns_markdown_download(tmp_path):
+    client, manager = make_client(tmp_path)
+    chat = manager.create_chat("Export Chat")
+    manager.add_message(chat.id, "user", "Hello")
+    manager.add_message(chat.id, "assistant", "Hi there")
+
+    response = client.get(f"/chat/{chat.id}/export")
+
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert response.mimetype == "text/markdown"
+    assert 'filename="export-chat.md"' in response.headers["Content-Disposition"]
+    assert "# Export Chat" in body
+    assert "## User" in body
+    assert "Hello" in body
+    assert "## Assistant" in body
+    assert "Hi there" in body
+
+
+def test_export_missing_chat_returns_404(tmp_path):
+    client, _manager = make_client(tmp_path)
+
+    response = client.get("/chat/missing/export")
+
+    assert response.status_code == 404
+
+
 def test_model_status_endpoint_reports_runtime_state(tmp_path):
     client, _manager = make_client(tmp_path)
 
@@ -123,3 +151,26 @@ def test_generation_preset_endpoint_rejects_unknown_preset(tmp_path):
 
     assert response.status_code == 400
     assert response.get_json()["ok"] is False
+
+
+def test_model_status_endpoint_reports_model_loading_error(tmp_path):
+    manager = ChatManager(
+        storage=InMemoryStorage(),
+        llm_service=UnavailableLLMService(
+            backend="transformers",
+            model_name_or_path="models/missing",
+            load_error="Model path does not exist.",
+        ),
+    )
+    app = create_app(manager, models_dir=tmp_path / "models")
+    app.config.update(TESTING=True)
+    client = app.test_client()
+
+    response = client.get("/api/model/status")
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["status"]["backend"] == "transformers"
+    assert payload["status"]["state"] == "error"
+    assert payload["status"]["ready"] is False
+    assert "Model path" in payload["status"]["error"]

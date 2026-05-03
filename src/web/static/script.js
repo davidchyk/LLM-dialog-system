@@ -8,6 +8,8 @@ const messagesContainer = document.getElementById("messages");
 const messageCount = document.querySelector("[data-message-count]");
 const chatHeaderTitle = document.querySelector("[data-chat-title]");
 const chatEmptyState = document.getElementById("chat-empty-state");
+const generationPresetSelect = document.querySelector("[data-generation-preset]");
+const modelState = document.querySelector("[data-model-state]");
 let isGenerating = false;
 
 function formatLocalTime(isoTimestamp) {
@@ -308,6 +310,57 @@ async function postJson(url, payload = {}) {
   return data;
 }
 
+async function getJson(url) {
+  const response = await fetch(url, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+
+  const data = await response.json().catch(() => ({
+    ok: false,
+    error: "Unexpected server response.",
+  }));
+
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || "Request failed.");
+  }
+
+  return data;
+}
+
+function updateModelStateLabel(status) {
+  if (!modelState || !status) {
+    return;
+  }
+
+  const state = status.state || (status.ready ? "ready" : "not_loaded");
+  const label = state === "not_loaded" ? "not loaded" : state;
+  modelState.textContent = label;
+  modelState.title = `${status.service || "LLM service"}: ${label}`;
+  modelState.classList.remove("ready", "loading", "error", "not-loaded");
+  modelState.classList.add(state.replace("_", "-"));
+}
+
+async function refreshModelStatus() {
+  if (!modelState) {
+    return;
+  }
+
+  try {
+    const data = await getJson("/api/model/status");
+    updateModelStateLabel(data.status);
+    if (data.status?.state === "error") {
+      showToast(data.status.error || "Model failed to load.");
+    }
+  } catch (error) {
+    modelState.textContent = "error";
+    modelState.title = error.message;
+    modelState.classList.remove("ready", "loading", "not-loaded");
+    modelState.classList.add("error");
+  }
+}
+
 textareas.forEach((textarea) => {
   resizeTextarea(textarea);
 
@@ -389,6 +442,20 @@ if (searchInput) {
     updateSidebarSearchState();
   });
 }
+
+generationPresetSelect?.addEventListener("change", async () => {
+  const selectedPreset = generationPresetSelect.value;
+  generationPresetSelect.setAttribute("disabled", "disabled");
+
+  try {
+    await postJson("/api/generation-preset", { preset: selectedPreset });
+    showToast(`Generation preset set to ${selectedPreset}.`, "success", 2200);
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    generationPresetSelect.removeAttribute("disabled");
+  }
+});
 
 function updateSidebarSearchState() {
   const rows = Array.from(document.querySelectorAll(".sidebar-chat-row"));
@@ -617,6 +684,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderExistingAssistantMarkdown();
   typesetExistingAssistantMath();
   updateSidebarSearchState();
+  refreshModelStatus();
 
   const initialToasts = window.__INITIAL_TOASTS__ || [];
   if (Array.isArray(initialToasts) && initialToasts.length > 0) {

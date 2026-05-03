@@ -6,6 +6,7 @@ from src.llm.base import BaseLLMService
 import src.llm.factory as llm_factory
 from src.llm.factory import UnsupportedLLMBackendError, create_llm_service
 from src.llm.mock_service import MockLLMService
+from src.llm.unavailable_service import UnavailableLLMService
 
 
 def test_create_llm_service_returns_mock_by_default(monkeypatch):
@@ -63,3 +64,17 @@ def test_transformers_backend_uses_transformers_factory(monkeypatch):
     service = create_llm_service("transformers")
 
     assert isinstance(service, FakeTransformersService)
+
+
+def test_transformers_backend_falls_back_when_model_loading_fails(monkeypatch):
+    monkeypatch.setattr(
+        llm_factory,
+        "_create_transformers_service",
+        lambda: (_ for _ in ()).throw(RuntimeError("missing model")),
+    )
+
+    service = create_llm_service("transformers")
+
+    assert isinstance(service, UnavailableLLMService)
+    assert service.backend == "transformers"
+    assert "missing model" in service.load_error

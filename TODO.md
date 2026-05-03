@@ -52,8 +52,8 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [x] Add generation preset selector endpoint
 - [x] Add model health/status checks
 - [ ] Add streaming generation
-- [ ] Add model loading indicator in UI
-- [ ] Add graceful error page/toast if model loading fails
+- [x] Add model loading indicator in UI
+- [x] Add graceful error page/toast if model loading fails
 - [x] Add syntax highlighting for rendered code blocks
 - [ ] Add KaTeX/MathJax offline mode
 - [ ] Add model configuration file
@@ -69,7 +69,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [ ] Add database migrations with Alembic
 - [ ] Add user accounts/auth if ever needed
 - [ ] Add message search
-- [ ] Add conversation export
+- [x] Add conversation export
 
 ### LoRA/QLoRA
 
