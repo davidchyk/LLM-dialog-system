@@ -19,3 +19,6 @@ ON messages(chat_id, position);
 
 CREATE INDEX IF NOT EXISTS idx_chats_updated_at
 ON chats(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_messages_timestamp
+ON messages(timestamp);

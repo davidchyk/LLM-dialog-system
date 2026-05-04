@@ -15,6 +15,7 @@ def make_postgres_storage() -> PostgresStorage:
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         pytest.skip("DATABASE_URL is required for PostgreSQL integration tests.")
+    pytest.importorskip("alembic", reason="Alembic is required for PostgreSQL migrations.")
     return PostgresStorage(database_url)
 
 

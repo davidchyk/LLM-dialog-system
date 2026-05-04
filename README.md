@@ -138,6 +138,18 @@ The schema is also available in:
 scripts/init_postgres.sql
 ```
 
+Schema changes are managed by Alembic migrations in:
+
+```text
+migrations/
+```
+
+The app runs `alembic upgrade head` automatically when `PostgresStorage` starts. You can also run migrations manually:
+
+```powershell
+alembic upgrade head
+```
+
 ## Run Web Mode
 
 ```powershell
@@ -261,7 +273,6 @@ The web UI uses a local offline MathJax-compatible renderer for math rendering i
 
 * The PostgreSQL database must be created manually before first run.
 * Runtime model switching is not implemented yet. Set `MODEL_NAME` and restart the app.
-* Database migrations are handled by simple schema creation, not Alembic.
 * Responses are not streamed yet.
 * User accounts/auth are not implemented.
 * LoRA/QLoRA support is planned for a later stage.

@@ -66,7 +66,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [x] Add storage backend selection
 - [x] Remove legacy JSON storage backend
 - [ ] Add runtime storage management UI
-- [ ] Add database migrations with Alembic
+- [x] Add database migrations with Alembic
 - [ ] Add user accounts/auth if ever needed
 - [x] Add message search
 - [x] Add conversation export

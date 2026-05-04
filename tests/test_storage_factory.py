@@ -31,6 +31,7 @@ def restore_storage_env():
 
 
 def reload_storage_modules(monkeypatch):
+    monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     importlib.reload(config)
     return importlib.reload(storage_factory)
@@ -44,6 +45,7 @@ def test_storage_requires_database_config(monkeypatch):
 
 
 def test_missing_config_raises(monkeypatch):
+    monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("POSTGRES_HOST", raising=False)
     monkeypatch.delenv("POSTGRES_DB", raising=False)
@@ -57,6 +59,7 @@ def test_missing_config_raises(monkeypatch):
 
 
 def test_database_url_can_be_built_from_postgres_parts(monkeypatch):
+    monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("POSTGRES_HOST", "localhost")
     monkeypatch.setenv("POSTGRES_PORT", "5433")

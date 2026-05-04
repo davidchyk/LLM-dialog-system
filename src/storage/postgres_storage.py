@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from src.core.models import Chat, Message, Role, utc_now_iso
@@ -155,48 +156,7 @@ class PostgresStorage(BaseStorage):
                 ]
 
     def _ensure_schema(self) -> None:
-        with self._connect() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS chats (
-                        id TEXT PRIMARY KEY,
-                        title TEXT NOT NULL,
-                        created_at TIMESTAMPTZ NOT NULL,
-                        updated_at TIMESTAMPTZ NOT NULL
-                    )
-                    """
-                )
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS messages (
-                        id BIGSERIAL PRIMARY KEY,
-                        chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-                        role TEXT NOT NULL,
-                        content TEXT NOT NULL,
-                        timestamp TIMESTAMPTZ NOT NULL,
-                        position INTEGER NOT NULL
-                    )
-                    """
-                )
-                cursor.execute(
-                    """
-                    CREATE INDEX IF NOT EXISTS idx_messages_chat_position
-                    ON messages(chat_id, position)
-                    """
-                )
-                cursor.execute(
-                    """
-                    CREATE INDEX IF NOT EXISTS idx_chats_updated_at
-                    ON chats(updated_at)
-                    """
-                )
-                cursor.execute(
-                    """
-                    CREATE INDEX IF NOT EXISTS idx_messages_timestamp
-                    ON messages(timestamp)
-                    """
-                )
+        _run_alembic_upgrade(self.database_url)
 
     def _connect(self):
         try:
@@ -257,3 +217,31 @@ class PostgresStorage(BaseStorage):
         if isinstance(value, datetime):
             return value.isoformat()
         return str(value)
+
+
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _to_sqlalchemy_url(database_url: str) -> str:
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return database_url
+
+
+def _run_alembic_upgrade(database_url: str) -> None:
+    try:
+        from alembic import command
+        from alembic.config import Config
+    except ImportError as error:
+        raise RuntimeError(
+            "PostgreSQL migrations require Alembic. "
+            "Install dependencies with: pip install -r requirements.txt"
+        ) from error
+
+    alembic_config = Config(str(_project_root() / "alembic.ini"))
+    alembic_config.set_main_option(
+        "sqlalchemy.url",
+        _to_sqlalchemy_url(database_url),
+    )
+    command.upgrade(alembic_config, "head")
