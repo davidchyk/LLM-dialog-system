@@ -255,7 +255,7 @@ Assistant responses can render LaTeX math in the web UI:
 \[ E = mc^2 \]
 ```
 
-The web UI uses MathJax from CDN only for math rendering in the local browser interface.
+The web UI uses a local offline MathJax-compatible renderer for math rendering in the browser interface.
 
 ## Current Limitations
 

@@ -28,6 +28,8 @@ def test_home_page_loads(tmp_path):
     assert b"Backend" in response.data
     assert b"Preset" in response.data
     assert b"No local models found" in response.data
+    assert b"/static/vendor/mathjax/tex-svg.js" in response.data
+    assert b"cdn.jsdelivr" not in response.data
 
 
 def test_home_page_lists_local_models(tmp_path):
@@ -76,6 +78,8 @@ def test_chat_page_loads(tmp_path):
 
     assert response.status_code == 200
     assert b"Web chat" in response.data
+    assert b"/static/vendor/mathjax/tex-svg.js" in response.data
+    assert b"cdn.jsdelivr" not in response.data
 
 
 def test_send_endpoint_rejects_empty_message(tmp_path):

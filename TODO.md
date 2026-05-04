@@ -55,7 +55,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [x] Add model loading indicator in UI
 - [x] Add graceful error page/toast if model loading fails
 - [x] Add syntax highlighting for rendered code blocks
-- [ ] Add KaTeX/MathJax offline mode
+- [x] Add KaTeX/MathJax offline mode
 - [x] Add model configuration file
 
 ### PostgreSQL Storage

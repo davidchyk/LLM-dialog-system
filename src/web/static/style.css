@@ -653,6 +653,29 @@ button:disabled {
   padding: 1px 5px;
 }
 
+.math-render {
+  color: var(--text);
+  font-family: "Cambria Math", "Times New Roman", serif;
+}
+
+.math-inline {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+.math-display {
+  background: #0b0b0b;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: block;
+  margin: 10px 0;
+  overflow-x: auto;
+  padding: 10px 12px;
+  text-align: center;
+}
+
 .message-role {
   color: var(--muted-2);
   font-size: 12px;
