@@ -1,5 +1,4 @@
 # Optional output Tex files from the compiler:
-
 *.aux
 *.fdb_latexmk
 *.fls
@@ -28,3 +27,6 @@ models/
 .env
 .env.local
 *.local.env
+
+# id_storage file:
+id_storage
