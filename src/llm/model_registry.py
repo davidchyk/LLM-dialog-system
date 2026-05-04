@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,6 +12,15 @@ class LocalModelInfo:
     has_config: bool
     has_weights: bool
     has_tokenizer: bool
+
+
+@dataclass(frozen=True)
+class ConfiguredModelInfo:
+    name: str
+    path: str
+    backend: str = "transformers"
+    generation_preset: str = "balanced"
+    description: str = ""
 
 
 def list_local_models(models_dir: str | Path = "models") -> list[LocalModelInfo]:
@@ -54,3 +64,46 @@ def _inspect_model_dir(model_dir: Path, models_root: Path) -> LocalModelInfo:
         has_weights=has_weights,
         has_tokenizer=has_tokenizer,
     )
+
+
+def list_configured_models(
+    config_path: str | Path = "model_config.json",
+) -> list[ConfiguredModelInfo]:
+    path = Path(config_path)
+    if not path.exists() or not path.is_file():
+        return []
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+
+    raw_models = data.get("models") if isinstance(data, dict) else None
+    if not isinstance(raw_models, list):
+        return []
+
+    models: list[ConfiguredModelInfo] = []
+    for raw_model in raw_models:
+        if not isinstance(raw_model, dict):
+            continue
+
+        name = str(raw_model.get("name", "")).strip()
+        model_path = str(raw_model.get("path", "")).strip()
+        if not name or not model_path:
+            continue
+
+        models.append(
+            ConfiguredModelInfo(
+                name=name,
+                path=model_path,
+                backend=str(raw_model.get("backend", "transformers")).strip()
+                or "transformers",
+                generation_preset=str(
+                    raw_model.get("generation_preset", "balanced")
+                ).strip()
+                or "balanced",
+                description=str(raw_model.get("description", "")).strip(),
+            )
+        )
+
+    return models

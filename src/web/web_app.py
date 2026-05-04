@@ -10,21 +10,23 @@ from flask import Flask, Response, flash, jsonify, redirect, render_template, re
 from src.config import AppConfig, GENERATION_PRESETS
 from src.core.chat_manager import ChatManager, ChatNotFoundError, ChatTitleError
 from src.core.models import Message
-from src.llm.model_registry import list_local_models
+from src.llm.model_registry import list_configured_models, list_local_models
 
 
 def create_app(
     chat_manager: ChatManager | None = None,
     models_dir: str | Path = "models",
+    model_config_path: str | Path | None = None,
 ) -> Flask:
 
     app = Flask(__name__)
     app.secret_key = "dev-secret-key"
     manager = chat_manager or ChatManager()
+    resolved_model_config_path = model_config_path or AppConfig.MODEL_CONFIG_PATH
 
     @app.context_processor
     def inject_ui_context() -> dict[str, object]:
-        return _get_ui_context(models_dir)
+        return _get_ui_context(models_dir, resolved_model_config_path)
 
     @app.template_filter("time_short")
     def time_short(value: str) -> str:
@@ -139,6 +141,29 @@ def create_app(
     def model_status():
         return jsonify({"ok": True, "status": _model_status(manager, models_dir)})
 
+    @app.get("/api/messages/search")
+    def search_messages():
+        query = request.args.get("query", "").strip()
+        limit = _parse_search_limit(request.args.get("limit", "8"))
+        results = manager.search_messages(query, limit)
+        return jsonify(
+            {
+                "ok": True,
+                "results": [
+                    {
+                        "chat_id": result.chat_id,
+                        "chat_title": result.chat_title,
+                        "role": result.role,
+                        "content": result.content,
+                        "preview": _message_preview(result.content),
+                        "timestamp": result.timestamp,
+                        "url": url_for("chat_page", chat_id=result.chat_id),
+                    }
+                    for result in results
+                ],
+            }
+        )
+
     @app.post("/api/generation-preset")
     def set_generation_preset():
         data = request.get_json(silent=True) or {}
@@ -182,7 +207,25 @@ def _format_timestamp(value: str) -> str:
     return parsed.strftime("%H:%M")
 
 
-def _get_ui_context(models_dir: str | Path = "models") -> dict[str, object]:
+def _parse_search_limit(value: str) -> int:
+    try:
+        limit = int(value)
+    except ValueError:
+        return 8
+    return max(1, min(limit, 25))
+
+
+def _message_preview(content: str, max_length: int = 120) -> str:
+    normalized = " ".join(content.split())
+    if len(normalized) <= max_length:
+        return normalized
+    return normalized[: max_length - 1].rstrip() + "..."
+
+
+def _get_ui_context(
+    models_dir: str | Path = "models",
+    model_config_path: str | Path = "model_config.json",
+) -> dict[str, object]:
     backend = AppConfig.LLM_BACKEND.strip().casefold() or "mock"
     model_name = AppConfig.MODEL_NAME if backend == "transformers" else "mock"
     return {
@@ -192,6 +235,7 @@ def _get_ui_context(models_dir: str | Path = "models") -> dict[str, object]:
         "generation_preset": AppConfig.GENERATION_PRESET,
         "generation_presets": list(GENERATION_PRESETS),
         "local_models": list_local_models(models_dir),
+        "configured_models": list_configured_models(model_config_path),
     }
 
 

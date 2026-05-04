@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.models import Chat, Message, Role, utc_now_iso
-from src.storage.base import BaseStorage
+from src.storage.base import BaseStorage, MessageSearchResult
 
 
 class InMemoryStorage(BaseStorage):
@@ -39,3 +39,30 @@ class InMemoryStorage(BaseStorage):
         chat.updated_at = now
         self.save_chat(chat)
         return chat
+
+    def search_messages(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> list[MessageSearchResult]:
+        normalized_query = query.strip().casefold()
+        if not normalized_query:
+            return []
+
+        results: list[MessageSearchResult] = []
+        for chat in self.list_chats():
+            for message in chat.messages:
+                if normalized_query not in message.content.casefold():
+                    continue
+                results.append(
+                    MessageSearchResult(
+                        chat_id=chat.id,
+                        chat_title=chat.title,
+                        role=message.role,
+                        content=message.content,
+                        timestamp=message.timestamp,
+                    )
+                )
+                if len(results) >= limit:
+                    return results
+        return results

@@ -1,0 +1,18 @@
+{
+  "models": [
+    {
+      "name": "Qwen2.5 0.5B Instruct",
+      "path": "models/qwen2.5-0.5b-instruct",
+      "backend": "transformers",
+      "generation_preset": "balanced",
+      "description": "Recommended small local instruction model."
+    },
+    {
+      "name": "DistilGPT2",
+      "path": "models/distilgpt2",
+      "backend": "transformers",
+      "generation_preset": "precise",
+      "description": "Tiny baseline model for quick local checks."
+    }
+  ]
+}

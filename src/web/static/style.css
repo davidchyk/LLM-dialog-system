@@ -237,6 +237,64 @@ button:disabled {
   padding: 10px 12px;
 }
 
+.message-search-results {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 10px;
+}
+
+.message-search-results > p {
+  color: var(--muted-2);
+  font-size: 12px;
+  margin: 0 0 2px;
+}
+
+.message-search-results > div {
+  display: grid;
+  gap: 4px;
+}
+
+.message-search-result {
+  border-radius: 8px;
+  color: var(--muted);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 8px;
+  text-decoration: none;
+}
+
+.message-search-result:hover {
+  background: var(--panel-hover);
+  color: var(--text);
+}
+
+.message-search-result strong,
+.message-search-result span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-search-result strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.message-search-meta {
+  color: var(--muted-2);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.message-search-preview {
+  font-size: 12px;
+}
+
 .llm-status {
   border-top: 1px solid var(--border);
   color: var(--muted-2);

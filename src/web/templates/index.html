@@ -48,6 +48,11 @@
         <p id="chat-empty-state" class="chat-empty-state">No chats yet</p>
       </nav>
 
+      <section class="message-search-results hidden" data-message-search-results aria-label="Message search results">
+        <p>Message matches</p>
+        <div data-message-search-list></div>
+      </section>
+
       <section class="llm-status" aria-label="LLM status">
         <div class="llm-status-row">
           <span>Backend</span>
@@ -70,6 +75,17 @@
           </select>
         </div>
         <div class="local-models">
+          {% if configured_models %}
+            <p>Configured models</p>
+            {% for model in configured_models %}
+              <div
+                class="local-model-item{% if model.path == model_name %} active{% endif %}"
+                title="{{ model.description or model.path }}"
+              >
+                <span>{{ model.name }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
           <p>Local models</p>
           {% if local_models %}
             {% for model in local_models %}

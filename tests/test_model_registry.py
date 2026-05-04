@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.llm.model_registry import list_local_models
+from src.llm.model_registry import list_configured_models, list_local_models
 
 
 def test_missing_models_directory_returns_empty_list(tmp_path):
@@ -65,3 +65,48 @@ def test_multiple_model_folders_are_listed(tmp_path):
     models = list_local_models(tmp_path / "models")
 
     assert [model.name for model in models] == ["distilgpt2", "qwen"]
+
+
+def test_missing_model_config_returns_empty_list(tmp_path):
+    models = list_configured_models(tmp_path / "missing.json")
+
+    assert models == []
+
+
+def test_invalid_model_config_returns_empty_list(tmp_path):
+    config_path = tmp_path / "model_config.json"
+    config_path.write_text("{not-json", encoding="utf-8")
+
+    models = list_configured_models(config_path)
+
+    assert models == []
+
+
+def test_model_config_lists_valid_entries(tmp_path):
+    config_path = tmp_path / "model_config.json"
+    config_path.write_text(
+        """
+        {
+          "models": [
+            {
+              "name": "Qwen",
+              "path": "models/qwen",
+              "backend": "transformers",
+              "generation_preset": "creative",
+              "description": "Local chat model"
+            },
+            {"name": "", "path": "models/ignored"}
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    models = list_configured_models(config_path)
+
+    assert len(models) == 1
+    assert models[0].name == "Qwen"
+    assert models[0].path == "models/qwen"
+    assert models[0].backend == "transformers"
+    assert models[0].generation_preset == "creative"
+    assert models[0].description == "Local chat model"

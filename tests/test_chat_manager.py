@@ -196,6 +196,21 @@ def test_send_message_passes_dict_history_to_llm(tmp_path):
     ]
 
 
+def test_search_messages_returns_matching_messages(tmp_path):
+    manager = make_manager(tmp_path)
+    first = manager.create_chat("First")
+    second = manager.create_chat("Second")
+    manager.add_message(first.id, "user", "Find the postgres note")
+    manager.add_message(second.id, "assistant", "No match here")
+
+    results = manager.search_messages("postgres")
+
+    assert len(results) == 1
+    assert results[0].chat_id == first.id
+    assert results[0].chat_title == "First"
+    assert results[0].content == "Find the postgres note"
+
+
 def test_get_missing_chat_returns_none(tmp_path):
     manager = make_manager(tmp_path)
 

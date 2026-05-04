@@ -5,7 +5,7 @@ from uuid import uuid4
 from src.core.models import Chat, utc_now_iso
 from src.llm.base import BaseLLMService
 from src.llm.factory import create_llm_service
-from src.storage.base import BaseStorage
+from src.storage.base import BaseStorage, MessageSearchResult
 from src.storage.factory import create_storage
 
 MAX_CHAT_TITLE_LENGTH = 60
@@ -91,6 +91,13 @@ class ChatManager:
         if role not in {"user", "assistant"}:
             raise ValueError("Message role must be 'user' or 'assistant'.")
         return self.storage.add_message(chat_id, role, content)
+
+    def search_messages(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> list[MessageSearchResult]:
+        return self.storage.search_messages(query, limit)
 
     def rename_chat(self, chat_id: str, new_title: str) -> Chat:
 

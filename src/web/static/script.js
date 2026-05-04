@@ -10,7 +10,10 @@ const chatHeaderTitle = document.querySelector("[data-chat-title]");
 const chatEmptyState = document.getElementById("chat-empty-state");
 const generationPresetSelect = document.querySelector("[data-generation-preset]");
 const modelState = document.querySelector("[data-model-state]");
+const messageSearchResults = document.querySelector("[data-message-search-results]");
+const messageSearchList = document.querySelector("[data-message-search-list]");
 let isGenerating = false;
+let searchTimer = null;
 
 function formatLocalTime(isoTimestamp) {
   if (!isoTimestamp) {
@@ -440,6 +443,7 @@ forms.forEach((form) => {
 if (searchInput) {
   searchInput.addEventListener("input", () => {
     updateSidebarSearchState();
+    scheduleMessageSearch();
   });
 }
 
@@ -484,6 +488,63 @@ function updateSidebarSearchState() {
   } else {
     chatEmptyState.classList.add("hidden");
   }
+}
+
+function renderMessageSearchResults(results) {
+  if (!messageSearchResults || !messageSearchList) {
+    return;
+  }
+
+  messageSearchList.replaceChildren();
+  if (!results.length) {
+    messageSearchResults.classList.add("hidden");
+    return;
+  }
+
+  results.forEach((result) => {
+    const link = document.createElement("a");
+    link.className = "message-search-result";
+    link.href = result.url;
+
+    const title = document.createElement("strong");
+    title.textContent = result.chat_title;
+
+    const meta = document.createElement("span");
+    meta.className = "message-search-meta";
+    meta.textContent = result.role;
+
+    const preview = document.createElement("span");
+    preview.className = "message-search-preview";
+    preview.textContent = result.preview;
+
+    link.append(title, meta, preview);
+    messageSearchList.append(link);
+  });
+  messageSearchResults.classList.remove("hidden");
+}
+
+function scheduleMessageSearch() {
+  if (!searchInput || !messageSearchResults || !messageSearchList) {
+    return;
+  }
+
+  window.clearTimeout(searchTimer);
+  const query = searchInput.value.trim();
+  if (query.length < 2) {
+    renderMessageSearchResults([]);
+    return;
+  }
+
+  searchTimer = window.setTimeout(async () => {
+    try {
+      const params = new URLSearchParams({ query, limit: "8" });
+      const data = await getJson(`/api/messages/search?${params.toString()}`);
+      renderMessageSearchResults(data.results || []);
+    } catch (error) {
+      renderMessageSearchResults([]);
+      showToast(error.message);
+    }
+  }, 220);
 }
 
 function updateChatTitleInDom(chatId, title) {

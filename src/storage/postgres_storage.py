@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from src.core.models import Chat, Message, Role, utc_now_iso
-from src.storage.base import BaseStorage
+from src.storage.base import BaseStorage, MessageSearchResult
 
 
 class PostgresStorage(BaseStorage):
@@ -114,6 +114,46 @@ class PostgresStorage(BaseStorage):
 
         return self.get_chat(chat_id)
 
+    def search_messages(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> list[MessageSearchResult]:
+        normalized_query = query.strip()
+        if not normalized_query:
+            return []
+
+        safe_limit = max(1, min(limit, 50))
+        pattern = f"%{normalized_query}%"
+        with self._connect() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        messages.chat_id,
+                        chats.title,
+                        messages.role,
+                        messages.content,
+                        messages.timestamp
+                    FROM messages
+                    INNER JOIN chats ON chats.id = messages.chat_id
+                    WHERE messages.content ILIKE %s
+                    ORDER BY messages.timestamp DESC
+                    LIMIT %s
+                    """,
+                    (pattern, safe_limit),
+                )
+                return [
+                    MessageSearchResult(
+                        chat_id=row[0],
+                        chat_title=row[1],
+                        role=row[2],
+                        content=row[3],
+                        timestamp=self._timestamp_to_iso(row[4]),
+                    )
+                    for row in cursor.fetchall()
+                ]
+
     def _ensure_schema(self) -> None:
         with self._connect() as conn:
             with conn.cursor() as cursor:
@@ -149,6 +189,12 @@ class PostgresStorage(BaseStorage):
                     """
                     CREATE INDEX IF NOT EXISTS idx_chats_updated_at
                     ON chats(updated_at)
+                    """
+                )
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_messages_timestamp
+                    ON messages(timestamp)
                     """
                 )
 

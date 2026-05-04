@@ -46,7 +46,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [ ] Test better small instruction-tuned models
 - [ ] Test Qwen2.5-1.5B-Instruct
 - [ ] Compare small instruction models
-- [ ] Add model-specific chat template regression tests
+- [x] Add model-specific chat template regression tests
 - [ ] Add runtime model switching without restarting app
 - [ ] Add model loading/unloading mechanism
 - [x] Add generation preset selector endpoint
@@ -56,7 +56,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [x] Add graceful error page/toast if model loading fails
 - [x] Add syntax highlighting for rendered code blocks
 - [ ] Add KaTeX/MathJax offline mode
-- [ ] Add model configuration file
+- [x] Add model configuration file
 
 ### PostgreSQL Storage
 
@@ -68,7 +68,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [ ] Add runtime storage management UI
 - [ ] Add database migrations with Alembic
 - [ ] Add user accounts/auth if ever needed
-- [ ] Add message search
+- [x] Add message search
 - [x] Add conversation export
 
 ### LoRA/QLoRA
