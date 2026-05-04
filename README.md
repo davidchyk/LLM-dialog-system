@@ -18,7 +18,7 @@ This is a local Python MVP for dialog interaction with large language models. Th
 * Sidebar search, toast notifications, auto-resizing input, and auto-scroll
 * Assistant Markdown/code block rendering in the web UI
 * Assistant LaTeX/math rendering in the web UI
-* Backend/model/preset indicator and local model discovery in the sidebar
+* Backend/model/preset indicator, runtime model switching, and local model discovery in the sidebar
 
 ## Project Structure
 
@@ -256,7 +256,7 @@ Explicit generation variables such as `MAX_NEW_TOKENS`, `TEMPERATURE`, `TOP_P`, 
 
 The web UI scans the local `models/` directory and shows available model folders in the sidebar. A folder is considered a local model when it contains `config.json` and model weights such as `*.safetensors` or `pytorch_model.bin`.
 
-Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh or restart the app to see it in the sidebar.
+Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh the page to see it in the sidebar. You can load a listed model or unload the active model back to the mock backend without restarting the Flask app.
 
 ## Math Rendering
 
@@ -272,7 +272,6 @@ The web UI uses a local offline MathJax-compatible renderer for math rendering i
 ## Current Limitations
 
 * The PostgreSQL database must be created manually before first run.
-* Runtime model switching is not implemented yet. Set `MODEL_NAME` and restart the app.
 * Responses are not streamed yet.
 * User accounts/auth are not implemented.
 * LoRA/QLoRA support is planned for a later stage.

@@ -10,6 +10,7 @@ const chatHeaderTitle = document.querySelector("[data-chat-title]");
 const chatEmptyState = document.getElementById("chat-empty-state");
 const generationPresetSelect = document.querySelector("[data-generation-preset]");
 const modelState = document.querySelector("[data-model-state]");
+const modelName = document.querySelector("[data-model-name]");
 const messageSearchResults = document.querySelector("[data-message-search-results]");
 const messageSearchList = document.querySelector("[data-message-search-list]");
 let isGenerating = false;
@@ -343,6 +344,30 @@ function updateModelStateLabel(status) {
   modelState.title = `${status.service || "LLM service"}: ${label}`;
   modelState.classList.remove("ready", "loading", "error", "not-loaded");
   modelState.classList.add(state.replace("_", "-"));
+  if (modelName) {
+    modelName.textContent = status.model_display_name || status.model_name || "mock";
+    modelName.title = status.model_name || "mock";
+  }
+  if (generationPresetSelect && status.generation_preset) {
+    generationPresetSelect.value = status.generation_preset;
+  }
+  updateActiveModelButtons(status.model_name);
+}
+
+function updateActiveModelButtons(activeModelPath) {
+  document.querySelectorAll("[data-model-switch]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.modelPath === activeModelPath);
+  });
+}
+
+function setModelLoading(label = "loading") {
+  if (!modelState) {
+    return;
+  }
+  modelState.textContent = label;
+  modelState.title = "Model operation is running";
+  modelState.classList.remove("ready", "error", "not-loaded");
+  modelState.classList.add("loading");
 }
 
 async function refreshModelStatus() {
@@ -458,6 +483,54 @@ generationPresetSelect?.addEventListener("change", async () => {
     showToast(error.message);
   } finally {
     generationPresetSelect.removeAttribute("disabled");
+  }
+});
+
+document.querySelectorAll("[data-model-switch]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const modelPath = button.dataset.modelPath;
+    const backend = button.dataset.modelBackend || "transformers";
+    const generationPreset = button.dataset.modelPreset || generationPresetSelect?.value || "";
+    if (!modelPath && backend !== "mock") {
+      return;
+    }
+
+    button.setAttribute("disabled", "disabled");
+    setModelLoading("loading");
+    try {
+      const data = await postJson("/api/model/switch", {
+        backend,
+        model_name: modelPath,
+        generation_preset: generationPreset,
+      });
+      updateModelStateLabel(data.status);
+      if (data.status?.state === "error") {
+        showToast(data.status.error || "Model failed to load.");
+      } else {
+        showToast(`Model switched to ${data.status.model_display_name}.`, "success", 2200);
+      }
+    } catch (error) {
+      await refreshModelStatus();
+      showToast(error.message);
+    } finally {
+      button.removeAttribute("disabled");
+    }
+  });
+});
+
+document.querySelector("[data-model-unload]")?.addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.setAttribute("disabled", "disabled");
+  setModelLoading("unloading");
+  try {
+    const data = await postJson("/api/model/unload");
+    updateModelStateLabel(data.status);
+    showToast("Model unloaded. Mock backend is active.", "success", 2200);
+  } catch (error) {
+    await refreshModelStatus();
+    showToast(error.message);
+  } finally {
+    button.removeAttribute("disabled");
   }
 });
 

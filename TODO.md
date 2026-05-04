@@ -47,8 +47,8 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [ ] Test Qwen2.5-1.5B-Instruct
 - [ ] Compare small instruction models
 - [x] Add model-specific chat template regression tests
-- [ ] Add runtime model switching without restarting app
-- [ ] Add model loading/unloading mechanism
+- [x] Add runtime model switching without restarting app
+- [x] Add model loading/unloading mechanism
 - [x] Add generation preset selector endpoint
 - [x] Add model health/status checks
 - [ ] Add streaming generation

@@ -260,3 +260,13 @@ class TransformersLLMService(BaseLLMService):
                 raise RuntimeError(
                     f"Model path does not exist: {model_name_or_path}"
                 )
+
+    def unload(self) -> None:
+        model = getattr(self, "model", None)
+        if model is not None:
+            del self.model
+        tokenizer = getattr(self, "tokenizer", None)
+        if tokenizer is not None:
+            del self.tokenizer
+        if getattr(self, "device", "") == "cuda":
+            self.torch.cuda.empty_cache()

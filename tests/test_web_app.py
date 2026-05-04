@@ -193,6 +193,44 @@ def test_model_status_endpoint_reports_runtime_state(tmp_path):
     assert payload["status"]["ready"] is True
 
 
+def test_model_switch_endpoint_rejects_missing_model_name(tmp_path):
+    client, _manager = make_client(tmp_path)
+
+    response = client.post("/api/model/switch", json={"backend": "transformers"})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Model name is required."
+
+
+def test_model_switch_endpoint_can_activate_mock_backend(tmp_path):
+    client, manager = make_client(tmp_path)
+
+    response = client.post("/api/model/switch", json={"backend": "mock"})
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["ok"] is True
+    assert payload["status"]["backend"] == "mock"
+    assert isinstance(manager.llm_service, MockLLMService)
+
+
+def test_model_unload_endpoint_activates_mock_backend(tmp_path):
+    client, manager = make_client(tmp_path)
+    manager.llm_service = UnavailableLLMService(
+        backend="transformers",
+        model_name_or_path="models/missing",
+        load_error="missing",
+    )
+
+    response = client.post("/api/model/unload")
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["status"]["backend"] == "mock"
+    assert payload["status"]["ready"] is True
+    assert isinstance(manager.llm_service, MockLLMService)
+
+
 def test_generation_preset_endpoint_accepts_known_preset(tmp_path):
     client, _manager = make_client(tmp_path)
 

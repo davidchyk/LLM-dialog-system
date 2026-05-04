@@ -58,7 +58,7 @@ def test_transformers_backend_uses_transformers_factory(monkeypatch):
     monkeypatch.setattr(
         llm_factory,
         "_create_transformers_service",
-        lambda: FakeTransformersService(),
+        lambda model_name_or_path="models/distilgpt2", generation_preset=None: FakeTransformersService(),
     )
 
     service = create_llm_service("transformers")
@@ -70,7 +70,9 @@ def test_transformers_backend_falls_back_when_model_loading_fails(monkeypatch):
     monkeypatch.setattr(
         llm_factory,
         "_create_transformers_service",
-        lambda: (_ for _ in ()).throw(RuntimeError("missing model")),
+        lambda model_name_or_path="models/distilgpt2", generation_preset=None: (
+            _ for _ in ()
+        ).throw(RuntimeError("missing model")),
     )
 
     service = create_llm_service("transformers")
@@ -78,3 +80,30 @@ def test_transformers_backend_falls_back_when_model_loading_fails(monkeypatch):
     assert isinstance(service, UnavailableLLMService)
     assert service.backend == "transformers"
     assert "missing model" in service.load_error
+
+
+def test_transformers_backend_passes_runtime_model_and_preset(monkeypatch):
+    captured = {}
+
+    class FakeTransformersService(BaseLLMService):
+        def generate_response(self, user_message, history=None):
+            return "fake"
+
+    def fake_create(model_name_or_path, generation_preset=None):
+        captured["model_name_or_path"] = model_name_or_path
+        captured["generation_preset"] = generation_preset
+        return FakeTransformersService()
+
+    monkeypatch.setattr(llm_factory, "_create_transformers_service", fake_create)
+
+    service = create_llm_service(
+        "transformers",
+        model_name_or_path="models/qwen",
+        generation_preset="creative",
+    )
+
+    assert isinstance(service, FakeTransformersService)
+    assert captured == {
+        "model_name_or_path": "models/qwen",
+        "generation_preset": "creative",
+    }

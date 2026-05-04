@@ -11,6 +11,7 @@ from src.config import AppConfig, GENERATION_PRESETS
 from src.core.chat_manager import ChatManager, ChatNotFoundError, ChatTitleError
 from src.core.models import Message
 from src.llm.model_registry import list_configured_models, list_local_models
+from src.llm.runtime import LLMRuntime
 
 
 def create_app(
@@ -22,6 +23,7 @@ def create_app(
     app = Flask(__name__)
     app.secret_key = "dev-secret-key"
     manager = chat_manager or ChatManager()
+    llm_runtime = LLMRuntime(manager)
     resolved_model_config_path = model_config_path or AppConfig.MODEL_CONFIG_PATH
 
     @app.context_processor
@@ -139,7 +141,43 @@ def create_app(
 
     @app.get("/api/model/status")
     def model_status():
-        return jsonify({"ok": True, "status": _model_status(manager, models_dir)})
+        return jsonify(
+            {"ok": True, "status": _model_status(manager, llm_runtime, models_dir)}
+        )
+
+    @app.post("/api/model/switch")
+    def switch_model():
+        data = request.get_json(silent=True) or {}
+        backend = str(data.get("backend", "")).strip().casefold() or "transformers"
+        model_name = str(data.get("model_name", "")).strip()
+        preset = str(data.get("generation_preset", "")).strip().casefold() or None
+
+        if backend not in {"mock", "transformers"}:
+            return jsonify({"ok": False, "error": "Unsupported LLM backend."}), 400
+        if backend == "transformers" and not model_name:
+            return jsonify({"ok": False, "error": "Model name is required."}), 400
+
+        llm_runtime.switch(
+            backend,
+            model_name_or_path=model_name or None,
+            generation_preset=preset,
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "status": _model_status(manager, llm_runtime, models_dir),
+            }
+        )
+
+    @app.post("/api/model/unload")
+    def unload_model():
+        llm_runtime.unload()
+        return jsonify(
+            {
+                "ok": True,
+                "status": _model_status(manager, llm_runtime, models_dir),
+            }
+        )
 
     @app.get("/api/messages/search")
     def search_messages():
@@ -283,6 +321,7 @@ def _chat_to_markdown(chat) -> str:
 
 def _model_status(
     manager: ChatManager,
+    llm_runtime: LLMRuntime | None = None,
     models_dir: str | Path = "models",
 ) -> dict[str, object]:
     context = _get_ui_context(models_dir)
@@ -306,7 +345,10 @@ def _model_status(
     )
     if load_error:
         is_ready = False
-    state = "error" if load_error else ("ready" if is_ready else "not_loaded")
+    runtime_state = llm_runtime.state if llm_runtime is not None else ""
+    state = runtime_state or ("error" if load_error else ("ready" if is_ready else "not_loaded"))
+    if runtime_state == "error" or load_error:
+        state = "error"
 
     return {
         "backend": backend,
@@ -316,7 +358,7 @@ def _model_status(
         "service": service_name,
         "ready": is_ready,
         "state": state,
-        "error": load_error,
+        "error": load_error or (llm_runtime.error if llm_runtime is not None else ""),
         "local_models": [
             {
                 "name": model.name,

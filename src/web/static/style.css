@@ -386,12 +386,24 @@ button:disabled {
 
 .local-model-item {
   align-items: center;
+  background: transparent;
+  border: 0;
   border-radius: 8px;
   color: var(--muted-2);
+  cursor: pointer;
   display: flex;
+  font: inherit;
   min-height: 28px;
   min-width: 0;
   padding: 5px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.local-model-item:hover,
+.model-control-button:hover {
+  background: var(--panel-hover);
+  color: var(--text);
 }
 
 .local-model-item.active {
@@ -411,6 +423,18 @@ button:disabled {
   font-size: 12px;
   margin: 0;
   padding: 4px 2px;
+}
+
+.model-control-button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  min-height: 30px;
+  padding: 5px 8px;
+  text-align: left;
 }
 
 .main-area {

@@ -60,7 +60,7 @@
         </div>
         <div class="llm-status-row">
           <span>Model</span>
-          <strong title="{{ model_name }}">{{ model_display_name }}</strong>
+          <strong data-model-name title="{{ model_name }}">{{ model_display_name }}</strong>
         </div>
         <div class="llm-status-row">
           <span>Status</span>
@@ -75,26 +75,36 @@
           </select>
         </div>
         <div class="local-models">
+          <button type="button" class="model-control-button" data-model-unload>Use mock backend</button>
           {% if configured_models %}
             <p>Configured models</p>
             {% for model in configured_models %}
-              <div
+              <button
+                type="button"
                 class="local-model-item{% if model.path == model_name %} active{% endif %}"
+                data-model-switch
+                data-model-backend="{{ model.backend }}"
+                data-model-path="{{ model.path }}"
+                data-model-preset="{{ model.generation_preset }}"
                 title="{{ model.description or model.path }}"
               >
                 <span>{{ model.name }}</span>
-              </div>
+              </button>
             {% endfor %}
           {% endif %}
           <p>Local models</p>
           {% if local_models %}
             {% for model in local_models %}
-              <div
+              <button
+                type="button"
                 class="local-model-item{% if model.path == model_name or model.name == model_display_name %} active{% endif %}"
-                title="{% if model.path == model_name or model.name == model_display_name %}Active model: {{ model.path }}{% else %}Set MODEL_NAME={{ model.path }} and restart the app.{% endif %}"
+                data-model-switch
+                data-model-backend="transformers"
+                data-model-path="{{ model.path }}"
+                title="{% if model.path == model_name or model.name == model_display_name %}Active model: {{ model.path }}{% else %}Load model: {{ model.path }}{% endif %}"
               >
                 <span>{{ model.name }}</span>
-              </div>
+              </button>
             {% endfor %}
           {% else %}
             <p class="local-model-empty">No local models found</p>
