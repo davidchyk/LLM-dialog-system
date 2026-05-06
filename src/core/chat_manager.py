@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from src.core.models import Chat, utc_now_iso
+from src.core.models import Chat, Role, utc_now_iso
 from src.llm.base import BaseLLMService
 from src.llm.factory import create_llm_service
 from src.storage.base import BaseStorage, MessageSearchResult
@@ -90,7 +90,8 @@ class ChatManager:
     def add_message(self, chat_id: str, role: str, content: str) -> Chat | None:
         if role not in {"user", "assistant"}:
             raise ValueError("Message role must be 'user' or 'assistant'.")
-        return self.storage.add_message(chat_id, role, content)
+        normalized_role: Role = "user" if role == "user" else "assistant"
+        return self.storage.add_message(chat_id, normalized_role, content)
 
     def search_messages(
         self,

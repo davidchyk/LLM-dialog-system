@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 
 @dataclass(frozen=True)
@@ -75,21 +76,24 @@ def list_configured_models(
         return []
 
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = cast(object, json.loads(path.read_text(encoding="utf-8")))
     except json.JSONDecodeError:
         return []
 
-    raw_models = data.get("models") if isinstance(data, dict) else None
+    config_data = cast(dict[str, object], data) if isinstance(data, dict) else {}
+    raw_models = config_data.get("models")
     if not isinstance(raw_models, list):
         return []
 
     models: list[ConfiguredModelInfo] = []
-    for raw_model in raw_models:
+    typed_raw_models = cast(list[object], raw_models)
+    for raw_model in typed_raw_models:
         if not isinstance(raw_model, dict):
             continue
 
-        name = str(raw_model.get("name", "")).strip()
-        model_path = str(raw_model.get("path", "")).strip()
+        model_data = cast(dict[str, object], raw_model)
+        name = str(model_data.get("name", "")).strip()
+        model_path = str(model_data.get("path", "")).strip()
         if not name or not model_path:
             continue
 
@@ -97,14 +101,14 @@ def list_configured_models(
             ConfiguredModelInfo(
                 name=name,
                 path=model_path,
-                backend=str(raw_model.get("backend", "transformers")).strip()
+                backend=str(model_data.get("backend", "transformers")).strip()
                 or "transformers",
                 generation_preset=str(
-                    raw_model.get("generation_preset", "balanced")
+                    model_data.get("generation_preset", "balanced")
                 ).strip()
                 or "balanced",
-                adapter_path=str(raw_model.get("adapter_path", "")).strip(),
-                description=str(raw_model.get("description", "")).strip(),
+                adapter_path=str(model_data.get("adapter_path", "")).strip(),
+                description=str(model_data.get("description", "")).strip(),
             )
         )
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+# pyright: reportUnknownParameterType=false, reportMissingParameterType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportPrivateUsage=false
 
 from src.storage import postgres_storage
 from src.storage.postgres_storage import PostgresStorage, _to_sqlalchemy_url

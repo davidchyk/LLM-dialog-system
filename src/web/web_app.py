@@ -1,15 +1,17 @@
 from __future__ import annotations
+# pyright: reportUnusedFunction=false
 
 # Flask is the current web interface layer and can be extended later if needed.
 
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 
 from src.config import AppConfig, GENERATION_PRESETS
 from src.core.chat_manager import ChatManager, ChatNotFoundError, ChatTitleError
-from src.core.models import Message
+from src.core.models import Chat, Message
 from src.llm.model_registry import list_configured_models, list_local_models
 from src.llm.runtime import LLMRuntime
 
@@ -75,7 +77,7 @@ def create_app(
 
     @app.post("/chat/<chat_id>/send")
     def send_message_json(chat_id: str):
-        data = request.get_json(silent=True) or {}
+        data = _request_json_object()
         content = str(data.get("message", "")).strip()
         if not content:
             return jsonify({"ok": False, "error": "Message cannot be empty."}), 400
@@ -99,7 +101,7 @@ def create_app(
 
     @app.post("/chat/<chat_id>/rename")
     def rename_chat(chat_id: str):
-        data = request.get_json(silent=True) or {}
+        data = _request_json_object()
         title = str(data.get("title", ""))
         try:
             chat = manager.rename_chat(chat_id, title)
@@ -147,7 +149,7 @@ def create_app(
 
     @app.post("/api/model/switch")
     def switch_model():
-        data = request.get_json(silent=True) or {}
+        data = _request_json_object()
         backend = str(data.get("backend", "")).strip().casefold() or "transformers"
         model_name = str(data.get("model_name", "")).strip()
         preset = str(data.get("generation_preset", "")).strip().casefold() or None
@@ -206,7 +208,7 @@ def create_app(
 
     @app.post("/api/generation-preset")
     def set_generation_preset():
-        data = request.get_json(silent=True) or {}
+        data = _request_json_object()
         preset = str(data.get("preset", "")).strip().casefold()
         if preset not in GENERATION_PRESETS:
             return jsonify(
@@ -229,6 +231,13 @@ def create_app(
         )
 
     return app
+
+
+def _request_json_object() -> dict[str, object]:
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return {}
+    return cast(dict[str, object], data)
 
 
 def _message_to_response(message: Message) -> dict[str, str]:
@@ -296,7 +305,7 @@ def _safe_export_filename(title: str) -> str:
     return safe or "chat"
 
 
-def _chat_to_markdown(chat) -> str:
+def _chat_to_markdown(chat: Chat) -> str:
     lines = [
         f"# {chat.title}",
         "",
@@ -327,6 +336,7 @@ def _model_status(
     models_dir: str | Path = "models",
 ) -> dict[str, object]:
     context = _get_ui_context(models_dir)
+    local_models = list_local_models(models_dir)
     service = manager.llm_service
     service_name = service.__class__.__name__
     is_transformers = service_name == "TransformersLLMService"
@@ -372,7 +382,7 @@ def _model_status(
                 "has_weights": model.has_weights,
                 "has_tokenizer": model.has_tokenizer,
             }
-            for model in context["local_models"]
+            for model in local_models
         ],
     }
 

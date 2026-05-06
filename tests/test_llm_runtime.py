@@ -1,4 +1,5 @@
 from __future__ import annotations
+# pyright: reportUnknownParameterType=false, reportMissingParameterType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownLambdaType=false, reportAttributeAccessIssue=false
 
 from src.core.chat_manager import ChatManager
 from src.llm.base import BaseLLMService

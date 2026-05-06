@@ -1,4 +1,5 @@
 from __future__ import annotations
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportAttributeAccessIssue=false, reportArgumentType=false
 
 from pathlib import Path
 from typing import Any
@@ -164,8 +165,6 @@ class TransformersLLMService(BaseLLMService):
     ) -> list[dict[str, str]]:
         valid_messages: list[dict[str, str]] = []
         for message in history or []:
-            if not isinstance(message, dict):
-                continue
             role = str(message.get("role", "")).lower()
             content = str(message.get("content", "")).strip()
             if role not in {"user", "assistant"} or not content:

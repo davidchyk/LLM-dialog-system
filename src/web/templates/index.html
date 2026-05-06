@@ -136,7 +136,7 @@
   {% with messages = get_flashed_messages() %}
     {% if messages %}
       <script>
-        window.__INITIAL_TOASTS__ = {{ messages|tojson }};
+        window.__INITIAL_TOASTS__ = JSON.parse("{{ messages|tojson|forceescape }}");
       </script>
     {% endif %}
   {% endwith %}

@@ -1,7 +1,9 @@
 from __future__ import annotations
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
 
 import argparse
 from pathlib import Path
+from typing import Any, cast
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,7 +37,7 @@ def main() -> None:
 
     try:
         import torch
-        from datasets import load_dataset
+        from datasets import load_dataset  # type: ignore[reportMissingTypeStubs, reportUnknownVariableType]
         from peft import LoraConfig, TaskType, get_peft_model
         from transformers import (
             AutoModelForCausalLM,
@@ -50,15 +52,15 @@ def main() -> None:
             "Install dependencies with: pip install -r requirements.txt"
         ) from error
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer: Any = AutoTokenizer.from_pretrained(args.model)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    model_kwargs = {}
+    model_kwargs: dict[str, Any] = {}
     if args.load_in_4bit:
         model_kwargs["load_in_4bit"] = True
         model_kwargs["device_map"] = "auto"
-    model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
+    model: Any = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
 
     lora_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
@@ -67,20 +69,26 @@ def main() -> None:
         lora_dropout=args.dropout,
         target_modules="all-linear",
     )
-    model = get_peft_model(model, lora_config)
+    model = cast(Any, get_peft_model(model, lora_config))
 
-    dataset = load_dataset("json", data_files=str(dataset_path), split="train")
+    dataset: Any = load_dataset("json", data_files=str(dataset_path), split="train")
 
-    def tokenize(example):
-        encoded = tokenizer(
-            str(example[args.text_field]),
-            truncation=True,
-            max_length=args.max_length,
+    def tokenize(example: dict[str, Any]) -> dict[str, Any]:
+        encoded = cast(
+            dict[str, Any],
+            tokenizer(
+                str(example[args.text_field]),
+                truncation=True,
+                max_length=args.max_length,
+            ),
         )
-        encoded["labels"] = encoded["input_ids"].copy()
+        input_ids = cast(list[int], encoded["input_ids"])
+        encoded["labels"] = input_ids.copy()
         return encoded
 
-    tokenized = dataset.map(tokenize, remove_columns=dataset.column_names)
+    column_names = getattr(dataset, "column_names", None)
+    remove_columns = column_names if isinstance(column_names, list) else None
+    tokenized: Any = dataset.map(tokenize, remove_columns=remove_columns)
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -98,11 +106,11 @@ def main() -> None:
         model=model,
         args=training_args,
         train_dataset=tokenized,
-        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
+        data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
     )
     trainer.train()
-    model.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
+    model.save_pretrained(str(output_dir))
+    tokenizer.save_pretrained(str(output_dir))
     print(f"Saved LoRA adapter to {output_dir}")
 
 

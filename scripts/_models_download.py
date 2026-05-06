@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download  # type: ignore[reportUnknownVariableType]
 
 
 # Change here:

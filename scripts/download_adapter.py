@@ -49,7 +49,7 @@ def download_adapter(
     token: str | None = None,
 ) -> str:
     try:
-        from huggingface_hub import snapshot_download
+        from huggingface_hub import snapshot_download  # type: ignore[reportUnknownVariableType]
     except ImportError as error:
         raise RuntimeError(
             "Adapter download requires huggingface_hub. "

@@ -1,4 +1,5 @@
 from __future__ import annotations
+# pyright: reportUnknownParameterType=false, reportMissingParameterType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportPrivateUsage=false
 
 import pytest
 
@@ -191,11 +192,11 @@ def test_clean_response_replaces_false_claude_identity():
 
 
 def test_default_system_prompt_defines_project_identity():
-    from src.config import AppConfig
+    from src.config import DEFAULT_SYSTEM_PROMPT
 
-    assert "LLM Dialog System" in AppConfig.SYSTEM_PROMPT
-    assert "not Claude" in AppConfig.SYSTEM_PROMPT
-    assert "not ChatGPT" in AppConfig.SYSTEM_PROMPT
+    assert "LLM Dialog System" in DEFAULT_SYSTEM_PROMPT
+    assert "not Claude" in DEFAULT_SYSTEM_PROMPT
+    assert "not ChatGPT" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_bool_config_parser_accepts_common_values(monkeypatch):

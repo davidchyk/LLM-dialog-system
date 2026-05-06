@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from src.config import AppConfig, GENERATION_PRESETS
+from src.config import AppConfig, GENERATION_PRESETS, GenerationPreset
 from src.llm.base import BaseLLMService
 from src.llm.mock_service import MockLLMService
 from src.llm.unavailable_service import UnavailableLLMService
@@ -70,7 +70,7 @@ def _create_transformers_service(
     )
 
 
-def _generation_settings(generation_preset: str | None = None) -> dict[str, object]:
+def _generation_settings(generation_preset: str | None = None) -> GenerationPreset:
     if generation_preset:
         preset = generation_preset.strip().casefold()
         if preset in GENERATION_PRESETS:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TypedDict
 
 try:
     from dotenv import load_dotenv
@@ -18,7 +19,15 @@ class ConfigError(ValueError):
     pass
 
 
-GENERATION_PRESETS = {
+class GenerationPreset(TypedDict):
+    max_new_tokens: int
+    temperature: float
+    top_p: float
+    do_sample: bool
+    repetition_penalty: float
+
+
+GENERATION_PRESETS: dict[str, GenerationPreset] = {
     "precise": {
         "max_new_tokens": 128,
         "temperature": 0.2,
@@ -41,6 +50,15 @@ GENERATION_PRESETS = {
         "repetition_penalty": 1.05,
     },
 }
+
+DEFAULT_SYSTEM_PROMPT = (
+    "You are LLM Dialog System, a local AI assistant running inside Artem's "
+    "course project. You are powered by a locally loaded pretrained language "
+    "model. You are not Claude, not ChatGPT, not Gemini, not Anthropic, and "
+    "not OpenAI. If asked who you are, say that you are LLM Dialog System, "
+    "a local assistant for dialog interaction with large language models. "
+    "Be helpful, concise, and honest."
+)
 
 
 def _parse_int(name: str, default: int) -> int:
@@ -117,15 +135,7 @@ class AppConfig:
     DO_SAMPLE = _parse_bool("DO_SAMPLE", _PRESET_VALUES["do_sample"])
     DEVICE = os.getenv("DEVICE", "auto")
     ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "LLM Dialog System")
-    SYSTEM_PROMPT = os.getenv(
-        "SYSTEM_PROMPT",
-        "You are LLM Dialog System, a local AI assistant running inside Artem's "
-        "course project. You are powered by a locally loaded pretrained language "
-        "model. You are not Claude, not ChatGPT, not Gemini, not Anthropic, and "
-        "not OpenAI. If asked who you are, say that you are LLM Dialog System, "
-        "a local assistant for dialog interaction with large language models. "
-        "Be helpful, concise, and honest.",
-    )
+    SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT", DEFAULT_SYSTEM_PROMPT)
     PROMPT_HISTORY_LIMIT = _parse_int("PROMPT_HISTORY_LIMIT", 6)
     REPETITION_PENALTY = _parse_float(
         "REPETITION_PENALTY",

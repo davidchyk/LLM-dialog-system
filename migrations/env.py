@@ -25,7 +25,10 @@ def _database_url() -> str:
     configured_url = get_database_url()
     if configured_url:
         return _sqlalchemy_url(configured_url)
-    return config.get_main_option("sqlalchemy.url")
+    fallback_url = config.get_main_option("sqlalchemy.url")
+    if not fallback_url:
+        raise RuntimeError("Database URL is required for Alembic migrations.")
+    return fallback_url
 
 
 def run_migrations_offline() -> None:
