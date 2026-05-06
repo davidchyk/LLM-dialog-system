@@ -15,6 +15,7 @@ This is a local Python MVP for dialog interaction with large language models. Th
 * Message history stored in PostgreSQL
 * Mock assistant responses through configurable `MockLLMService`
 * Optional local Transformers backend with chat-template support for instruction models
+* Optional PEFT LoRA/QLoRA adapter loading for local Transformers models
 * Sidebar search, toast notifications, auto-resizing input, and auto-scroll
 * Assistant Markdown/code block rendering in the web UI
 * Assistant LaTeX/math rendering in the web UI
@@ -258,6 +259,36 @@ The web UI scans the local `models/` directory and shows available model folders
 
 Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh the page to see it in the sidebar. You can load a listed model or unload the active model back to the mock backend without restarting the Flask app.
 
+Configured models can also include a PEFT adapter path through `adapter_path` in `model_config.json`. The same can be set globally with `ADAPTER_PATH`.
+
+## LoRA / QLoRA
+
+The Transformers backend can load a PEFT adapter on top of the base model:
+
+```text
+LLM_BACKEND=transformers
+MODEL_NAME=models/qwen2.5-0.5b-instruct
+ADAPTER_PATH=adapters/qwen-course-lora
+```
+
+An optional fine-tuning helper is available at:
+
+```text
+scripts/finetune_lora.py
+```
+
+You can download an existing Hugging Face PEFT adapter with:
+
+```powershell
+python scripts/download_adapter.py --repo-id AUTHOR/ADAPTER_REPO --local-dir adapters/qwen-course-lora
+```
+
+The workflow is documented in:
+
+```text
+docs/lora_qlora_workflow.md
+```
+
 ## Math Rendering
 
 Assistant responses can render LaTeX math in the web UI:
@@ -274,4 +305,3 @@ The web UI uses a local offline MathJax-compatible renderer for math rendering i
 * The PostgreSQL database must be created manually before first run.
 * Responses are not streamed yet.
 * User accounts/auth are not implemented.
-* LoRA/QLoRA support is planned for a later stage.

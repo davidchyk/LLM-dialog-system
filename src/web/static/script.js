@@ -11,6 +11,7 @@ const chatEmptyState = document.getElementById("chat-empty-state");
 const generationPresetSelect = document.querySelector("[data-generation-preset]");
 const modelState = document.querySelector("[data-model-state]");
 const modelName = document.querySelector("[data-model-name]");
+const adapterName = document.querySelector("[data-adapter-name]");
 const messageSearchResults = document.querySelector("[data-message-search-results]");
 const messageSearchList = document.querySelector("[data-message-search-list]");
 let isGenerating = false;
@@ -348,6 +349,10 @@ function updateModelStateLabel(status) {
     modelName.textContent = status.model_display_name || status.model_name || "mock";
     modelName.title = status.model_name || "mock";
   }
+  if (adapterName) {
+    adapterName.textContent = status.adapter_display_name || "none";
+    adapterName.title = status.adapter_path || "No adapter loaded";
+  }
   if (generationPresetSelect && status.generation_preset) {
     generationPresetSelect.value = status.generation_preset;
   }
@@ -491,6 +496,7 @@ document.querySelectorAll("[data-model-switch]").forEach((button) => {
     const modelPath = button.dataset.modelPath;
     const backend = button.dataset.modelBackend || "transformers";
     const generationPreset = button.dataset.modelPreset || generationPresetSelect?.value || "";
+    const adapterPath = button.dataset.adapterPath || "";
     if (!modelPath && backend !== "mock") {
       return;
     }
@@ -502,6 +508,7 @@ document.querySelectorAll("[data-model-switch]").forEach((button) => {
         backend,
         model_name: modelPath,
         generation_preset: generationPreset,
+        adapter_path: adapterPath,
       });
       updateModelStateLabel(data.status);
       if (data.status?.state === "error") {

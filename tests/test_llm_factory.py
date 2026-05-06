@@ -58,7 +58,9 @@ def test_transformers_backend_uses_transformers_factory(monkeypatch):
     monkeypatch.setattr(
         llm_factory,
         "_create_transformers_service",
-        lambda model_name_or_path="models/distilgpt2", generation_preset=None: FakeTransformersService(),
+        lambda model_name_or_path="models/distilgpt2",
+        generation_preset=None,
+        adapter_path=None: FakeTransformersService(),
     )
 
     service = create_llm_service("transformers")
@@ -70,7 +72,9 @@ def test_transformers_backend_falls_back_when_model_loading_fails(monkeypatch):
     monkeypatch.setattr(
         llm_factory,
         "_create_transformers_service",
-        lambda model_name_or_path="models/distilgpt2", generation_preset=None: (
+        lambda model_name_or_path="models/distilgpt2",
+        generation_preset=None,
+        adapter_path=None: (
             _ for _ in ()
         ).throw(RuntimeError("missing model")),
     )
@@ -89,9 +93,10 @@ def test_transformers_backend_passes_runtime_model_and_preset(monkeypatch):
         def generate_response(self, user_message, history=None):
             return "fake"
 
-    def fake_create(model_name_or_path, generation_preset=None):
+    def fake_create(model_name_or_path, generation_preset=None, adapter_path=None):
         captured["model_name_or_path"] = model_name_or_path
         captured["generation_preset"] = generation_preset
+        captured["adapter_path"] = adapter_path
         return FakeTransformersService()
 
     monkeypatch.setattr(llm_factory, "_create_transformers_service", fake_create)
@@ -106,4 +111,35 @@ def test_transformers_backend_passes_runtime_model_and_preset(monkeypatch):
     assert captured == {
         "model_name_or_path": "models/qwen",
         "generation_preset": "creative",
+        "adapter_path": "",
+    }
+
+
+def test_transformers_backend_passes_runtime_adapter(monkeypatch):
+    captured = {}
+
+    class FakeTransformersService(BaseLLMService):
+        def generate_response(self, user_message, history=None):
+            return "fake"
+
+    def fake_create(model_name_or_path, generation_preset=None, adapter_path=None):
+        captured["model_name_or_path"] = model_name_or_path
+        captured["generation_preset"] = generation_preset
+        captured["adapter_path"] = adapter_path
+        return FakeTransformersService()
+
+    monkeypatch.setattr(llm_factory, "_create_transformers_service", fake_create)
+
+    service = create_llm_service(
+        "transformers",
+        model_name_or_path="models/qwen",
+        generation_preset="balanced",
+        adapter_path="adapters/qwen-lora",
+    )
+
+    assert isinstance(service, FakeTransformersService)
+    assert captured == {
+        "model_name_or_path": "models/qwen",
+        "generation_preset": "balanced",
+        "adapter_path": "adapters/qwen-lora",
     }

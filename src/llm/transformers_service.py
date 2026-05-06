@@ -11,6 +11,7 @@ class TransformersLLMService(BaseLLMService):
     def __init__(
         self,
         model_name_or_path: str = AppConfig.MODEL_NAME,
+        adapter_path: str = AppConfig.ADAPTER_PATH,
         max_new_tokens: int = AppConfig.MAX_NEW_TOKENS,
         temperature: float = AppConfig.TEMPERATURE,
         top_p: float = AppConfig.TOP_P,
@@ -33,6 +34,7 @@ class TransformersLLMService(BaseLLMService):
 
         self.torch = torch
         self.model_name_or_path = model_name_or_path
+        self.adapter_path = adapter_path.strip()
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
         self.top_p = top_p
@@ -53,6 +55,9 @@ class TransformersLLMService(BaseLLMService):
             raise RuntimeError(
                 f"Failed to load Transformers model from '{model_name_or_path}'."
             ) from error
+
+        if self.adapter_path:
+            self._apply_peft_adapter(self.adapter_path)
 
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -260,6 +265,36 @@ class TransformersLLMService(BaseLLMService):
                 raise RuntimeError(
                     f"Model path does not exist: {model_name_or_path}"
                 )
+
+    def _validate_adapter_reference(self, adapter_path: str) -> None:
+        adapter = Path(adapter_path)
+        is_local_reference = (
+            adapter.is_absolute()
+            or adapter_path.startswith(".")
+            or adapter_path.startswith("adapters/")
+            or adapter_path.startswith("adapters\\")
+            or adapter_path.startswith("models/")
+            or adapter_path.startswith("models\\")
+        )
+        if is_local_reference and not adapter.exists():
+            raise RuntimeError(f"Adapter path does not exist: {adapter_path}")
+
+    def _apply_peft_adapter(self, adapter_path: str) -> None:
+        self._validate_adapter_reference(adapter_path)
+        try:
+            from peft import PeftModel
+        except ImportError as error:
+            raise RuntimeError(
+                "PEFT adapter loading requires peft. "
+                "Install dependencies with: pip install -r requirements.txt"
+            ) from error
+
+        try:
+            self.model = PeftModel.from_pretrained(self.model, adapter_path)
+        except Exception as error:
+            raise RuntimeError(
+                f"Failed to load PEFT adapter from '{adapter_path}'."
+            ) from error
 
     def unload(self) -> None:
         model = getattr(self, "model", None)

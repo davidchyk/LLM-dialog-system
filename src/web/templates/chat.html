@@ -63,6 +63,10 @@
           <strong data-model-name title="{{ model_name }}">{{ model_display_name }}</strong>
         </div>
         <div class="llm-status-row">
+          <span>Adapter</span>
+          <strong data-adapter-name title="">none</strong>
+        </div>
+        <div class="llm-status-row">
           <span>Status</span>
           <strong class="model-state loading" data-model-state title="Checking model status">checking</strong>
         </div>
@@ -86,6 +90,7 @@
                 data-model-backend="{{ model.backend }}"
                 data-model-path="{{ model.path }}"
                 data-model-preset="{{ model.generation_preset }}"
+                data-adapter-path="{{ model.adapter_path }}"
                 title="{{ model.description or model.path }}"
               >
                 <span>{{ model.name }}</span>

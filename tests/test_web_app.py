@@ -26,6 +26,7 @@ def test_home_page_loads(tmp_path):
     assert response.status_code == 200
     assert b"LLM Dialog System" in response.data
     assert b"Backend" in response.data
+    assert b"Adapter" in response.data
     assert b"Preset" in response.data
     assert b"No local models found" in response.data
     assert b"/static/vendor/mathjax/tex-svg.js" in response.data
@@ -54,6 +55,7 @@ def test_home_page_lists_configured_models(tmp_path):
             {
               "name": "Configured Qwen",
               "path": "models/qwen",
+              "adapter_path": "adapters/qwen-lora",
               "description": "Configured local model"
             }
           ]
@@ -68,6 +70,7 @@ def test_home_page_lists_configured_models(tmp_path):
     assert response.status_code == 200
     assert b"Configured models" in response.data
     assert b"Configured Qwen" in response.data
+    assert b"adapters/qwen-lora" in response.data
 
 
 def test_chat_page_loads(tmp_path):
@@ -258,6 +261,7 @@ def test_model_status_endpoint_reports_model_loading_error(tmp_path):
         llm_service=UnavailableLLMService(
             backend="transformers",
             model_name_or_path="models/missing",
+            adapter_path="adapters/missing",
             load_error="Model path does not exist.",
         ),
     )
@@ -272,4 +276,5 @@ def test_model_status_endpoint_reports_model_loading_error(tmp_path):
     assert payload["status"]["backend"] == "transformers"
     assert payload["status"]["state"] == "error"
     assert payload["status"]["ready"] is False
+    assert payload["status"]["adapter_path"] == "adapters/missing"
     assert "Model path" in payload["status"]["error"]

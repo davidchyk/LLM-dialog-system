@@ -93,6 +93,7 @@ def test_model_config_lists_valid_entries(tmp_path):
               "path": "models/qwen",
               "backend": "transformers",
               "generation_preset": "creative",
+              "adapter_path": "adapters/qwen-lora",
               "description": "Local chat model"
             },
             {"name": "", "path": "models/ignored"}
@@ -109,4 +110,5 @@ def test_model_config_lists_valid_entries(tmp_path):
     assert models[0].path == "models/qwen"
     assert models[0].backend == "transformers"
     assert models[0].generation_preset == "creative"
+    assert models[0].adapter_path == "adapters/qwen-lora"
     assert models[0].description == "Local chat model"

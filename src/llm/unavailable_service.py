@@ -11,9 +11,11 @@ class UnavailableLLMService(BaseLLMService):
         backend: str,
         model_name_or_path: str,
         load_error: str,
+        adapter_path: str = "",
     ) -> None:
         self.backend = backend
         self.model_name_or_path = model_name_or_path
+        self.adapter_path = adapter_path
         self.load_error = load_error
 
     def generate_response(

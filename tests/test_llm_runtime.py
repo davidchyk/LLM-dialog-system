@@ -44,7 +44,7 @@ def test_runtime_switch_unloads_previous_service(monkeypatch):
 
     monkeypatch.setattr(
         "src.llm.runtime.create_llm_service",
-        lambda backend, model_name_or_path=None, generation_preset=None: MockLLMService(),
+        lambda backend, model_name_or_path=None, generation_preset=None, adapter_path=None: MockLLMService(),
     )
 
     runtime.switch("mock")
@@ -62,9 +62,10 @@ def test_runtime_switch_records_unavailable_model_error(monkeypatch):
 
     monkeypatch.setattr(
         "src.llm.runtime.create_llm_service",
-        lambda backend, model_name_or_path=None, generation_preset=None: UnavailableLLMService(
+        lambda backend, model_name_or_path=None, generation_preset=None, adapter_path=None: UnavailableLLMService(
             backend="transformers",
             model_name_or_path=model_name_or_path or "",
+            adapter_path=adapter_path or "",
             load_error="missing",
         ),
     )
@@ -90,7 +91,7 @@ def test_runtime_switch_applies_generation_preset(monkeypatch):
 
     monkeypatch.setattr(
         "src.llm.runtime.create_llm_service",
-        lambda backend, model_name_or_path=None, generation_preset=None: MockLLMService(),
+        lambda backend, model_name_or_path=None, generation_preset=None, adapter_path=None: MockLLMService(),
     )
 
     runtime.switch(
@@ -101,3 +102,26 @@ def test_runtime_switch_applies_generation_preset(monkeypatch):
 
     assert AppConfig.GENERATION_PRESET == "creative"
     assert AppConfig.MAX_NEW_TOKENS == 180
+
+
+def test_runtime_switch_applies_adapter_path(monkeypatch):
+    from src.config import AppConfig
+
+    captured = {}
+    manager = make_manager()
+    runtime = LLMRuntime(manager)
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        captured["adapter_path"] = adapter_path
+        return MockLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    runtime.switch(
+        "transformers",
+        model_name_or_path="models/qwen",
+        adapter_path="adapters/qwen-lora",
+    )
+
+    assert captured["adapter_path"] == "adapters/qwen-lora"
+    assert AppConfig.ADAPTER_PATH == "adapters/qwen-lora"

@@ -5,6 +5,7 @@
       "path": "models/qwen2.5-0.5b-instruct",
       "backend": "transformers",
       "generation_preset": "balanced",
+      "adapter_path": "",
       "description": "Recommended small local instruction model."
     },
     {
@@ -12,7 +13,16 @@
       "path": "models/distilgpt2",
       "backend": "transformers",
       "generation_preset": "precise",
+      "adapter_path": "",
       "description": "Tiny baseline model for quick local checks."
+    },
+    {
+      "name": "Qwen2.5 0.5B with LoRA adapter",
+      "path": "models/qwen2.5-0.5b-instruct",
+      "backend": "transformers",
+      "generation_preset": "balanced",
+      "adapter_path": "adapters/qwen-course-lora",
+      "description": "Example PEFT adapter layered on top of the base Qwen model."
     }
   ]
 }

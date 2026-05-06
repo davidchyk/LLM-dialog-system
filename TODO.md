@@ -73,10 +73,10 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 
 ### LoRA/QLoRA
 
-- [ ] Study PEFT integration
-- [ ] Add adapter loading support
-- [ ] Add optional fine-tuning script
-- [ ] Document LoRA/QLoRA workflow
+- [x] Study PEFT integration
+- [x] Add adapter loading support
+- [x] Add optional fine-tuning script
+- [x] Document LoRA/QLoRA workflow
 
 ### Course Project Documentation
 

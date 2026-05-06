@@ -16,6 +16,7 @@ def create_llm_service(
     backend: str | None = None,
     model_name_or_path: str | None = None,
     generation_preset: str | None = None,
+    adapter_path: str | None = None,
 ) -> BaseLLMService:
     backend_name = (backend or os.getenv("LLM_BACKEND") or "mock").strip()
     normalized_backend = backend_name.casefold() or "mock"
@@ -25,12 +26,18 @@ def create_llm_service(
 
     if normalized_backend == "transformers":
         model_name = model_name_or_path or AppConfig.MODEL_NAME
+        resolved_adapter_path = adapter_path if adapter_path is not None else AppConfig.ADAPTER_PATH
         try:
-            return _create_transformers_service(model_name, generation_preset)
+            return _create_transformers_service(
+                model_name,
+                generation_preset,
+                resolved_adapter_path,
+            )
         except RuntimeError as error:
             return UnavailableLLMService(
                 backend=normalized_backend,
                 model_name_or_path=model_name,
+                adapter_path=resolved_adapter_path,
                 load_error=str(error),
             )
 
@@ -42,12 +49,14 @@ def create_llm_service(
 def _create_transformers_service(
     model_name_or_path: str = AppConfig.MODEL_NAME,
     generation_preset: str | None = None,
+    adapter_path: str | None = None,
 ) -> BaseLLMService:
     from src.llm.transformers_service import TransformersLLMService
 
     settings = _generation_settings(generation_preset)
     return TransformersLLMService(
         model_name_or_path=model_name_or_path,
+        adapter_path=adapter_path or "",
         max_new_tokens=settings["max_new_tokens"],
         temperature=settings["temperature"],
         top_p=settings["top_p"],

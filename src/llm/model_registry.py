@@ -20,6 +20,7 @@ class ConfiguredModelInfo:
     path: str
     backend: str = "transformers"
     generation_preset: str = "balanced"
+    adapter_path: str = ""
     description: str = ""
 
 
@@ -102,6 +103,7 @@ def list_configured_models(
                     raw_model.get("generation_preset", "balanced")
                 ).strip()
                 or "balanced",
+                adapter_path=str(raw_model.get("adapter_path", "")).strip(),
                 description=str(raw_model.get("description", "")).strip(),
             )
         )

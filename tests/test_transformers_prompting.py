@@ -214,3 +214,10 @@ def test_config_parsers_raise_clear_errors(monkeypatch):
     monkeypatch.setenv("DO_SAMPLE", "maybe")
     with pytest.raises(config.ConfigError, match="must be a boolean"):
         config._parse_bool("DO_SAMPLE", True)
+
+
+def test_adapter_reference_validation_rejects_missing_local_adapter():
+    service = make_service()
+
+    with pytest.raises(RuntimeError, match="Adapter path does not exist"):
+        service._validate_adapter_reference("adapters/missing-lora")

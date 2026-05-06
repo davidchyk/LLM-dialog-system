@@ -151,6 +151,7 @@ def create_app(
         backend = str(data.get("backend", "")).strip().casefold() or "transformers"
         model_name = str(data.get("model_name", "")).strip()
         preset = str(data.get("generation_preset", "")).strip().casefold() or None
+        adapter_path = str(data.get("adapter_path", "")).strip()
 
         if backend not in {"mock", "transformers"}:
             return jsonify({"ok": False, "error": "Unsupported LLM backend."}), 400
@@ -161,6 +162,7 @@ def create_app(
             backend,
             model_name_or_path=model_name or None,
             generation_preset=preset,
+            adapter_path=adapter_path or None,
         )
         return jsonify(
             {
@@ -339,6 +341,7 @@ def _model_status(
         if is_transformers or load_error
         else "mock"
     )
+    adapter_path = getattr(service, "adapter_path", "")
     is_ready = not is_transformers or (
         getattr(service, "model", None) is not None
         and getattr(service, "tokenizer", None) is not None
@@ -354,6 +357,8 @@ def _model_status(
         "backend": backend,
         "model_name": model_name,
         "model_display_name": _model_display_name(str(model_name)),
+        "adapter_path": adapter_path,
+        "adapter_display_name": _model_display_name(str(adapter_path)) if adapter_path else "",
         "generation_preset": context["generation_preset"],
         "service": service_name,
         "ready": is_ready,

@@ -25,6 +25,7 @@ class LLMRuntime:
         backend: str,
         model_name_or_path: str | None = None,
         generation_preset: str | None = None,
+        adapter_path: str | None = None,
     ) -> BaseLLMService:
         normalized_backend = backend.strip().casefold() or "mock"
         with self._lock:
@@ -36,6 +37,7 @@ class LLMRuntime:
                 normalized_backend,
                 model_name_or_path=model_name_or_path,
                 generation_preset=generation_preset,
+                adapter_path=adapter_path,
             )
             self.manager.llm_service = service
             load_error = getattr(service, "load_error", "")
@@ -45,9 +47,11 @@ class LLMRuntime:
             if normalized_backend == "transformers" and model_name_or_path:
                 config.AppConfig.LLM_BACKEND = "transformers"
                 config.AppConfig.MODEL_NAME = model_name_or_path
+                config.AppConfig.ADAPTER_PATH = adapter_path or ""
                 self._apply_generation_preset(generation_preset)
             elif normalized_backend == "mock":
                 config.AppConfig.LLM_BACKEND = "mock"
+                config.AppConfig.ADAPTER_PATH = ""
             return service
 
     def unload(self) -> BaseLLMService:
@@ -58,6 +62,7 @@ class LLMRuntime:
             self.state = "ready"
             self.error = ""
             config.AppConfig.LLM_BACKEND = "mock"
+            config.AppConfig.ADAPTER_PATH = ""
             return service
 
     def _unload_current_locked(self) -> None:

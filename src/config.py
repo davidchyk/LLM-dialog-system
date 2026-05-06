@@ -107,6 +107,7 @@ def get_database_url() -> str:
 class AppConfig:
     LLM_BACKEND = os.getenv("LLM_BACKEND", "mock")
     MODEL_NAME = os.getenv("MODEL_NAME", "models/distilgpt2")
+    ADAPTER_PATH = os.getenv("ADAPTER_PATH", "").strip()
     MODEL_CONFIG_PATH = os.getenv("MODEL_CONFIG_PATH", "model_config.json")
     GENERATION_PRESET = _parse_generation_preset()
     _PRESET_VALUES = GENERATION_PRESETS[GENERATION_PRESET]
