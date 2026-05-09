@@ -165,6 +165,20 @@ def test_clean_response_removes_consecutive_duplicate_lines():
     assert response == "Hello\nWorld"
 
 
+def test_clean_response_preserves_code_indentation():
+    service = make_service()
+
+    response = service._clean_response(
+        "Here is code:\n"
+        "```python\n"
+        "def hello():\n"
+        "    print('hi')\n"
+        "```\n"
+    )
+
+    assert "    print('hi')" in response
+
+
 def test_clean_response_returns_fallback_for_empty_text():
     service = make_service()
 

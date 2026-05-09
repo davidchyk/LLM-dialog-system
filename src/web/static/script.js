@@ -70,6 +70,27 @@ function highlightCode(code) {
   });
 }
 
+function trimCodeBlock(code) {
+  const lines = String(code ?? "").replace(/\r\n/g, "\n").split("\n");
+  while (lines.length && lines[0].trim() === "") {
+    lines.shift();
+  }
+  while (lines.length && lines.at(-1).trim() === "") {
+    lines.pop();
+  }
+  return lines.join("\n");
+}
+
+function renderCodeBlock(languageClass, code) {
+  const highlightedCode = highlightCode(trimCodeBlock(code));
+  return (
+    `<pre class="code-block">` +
+    `<button type="button" class="code-copy-button" data-copy-code title="Copy code">Copy</button>` +
+    `<code class="${languageClass.trim()}">${highlightedCode}</code>` +
+    `</pre>`
+  );
+}
+
 function renderAssistantMarkdown(text) {
   const codeBlocks = [];
   let escaped = escapeHtml(text);
@@ -77,10 +98,7 @@ function renderAssistantMarkdown(text) {
   escaped = escaped.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_match, language, code) => {
     const index = codeBlocks.length;
     const languageClass = language ? ` language-${language}` : "";
-    const highlightedCode = highlightCode(code.trim());
-    codeBlocks.push(
-      `<pre><code class="${languageClass.trim()}">${highlightedCode}</code></pre>`
-    );
+    codeBlocks.push(renderCodeBlock(languageClass, code));
     return `@@CODE_BLOCK_${index}@@`;
   });
 
@@ -112,8 +130,32 @@ function renderExistingAssistantMarkdown() {
       }
       const rawText = content.textContent || "";
       content.innerHTML = renderAssistantMarkdown(rawText);
-    });
+  });
 }
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-copy-code]");
+  if (!button) {
+    return;
+  }
+
+  const code = button.closest("pre")?.querySelector("code");
+  const text = code?.textContent || "";
+  if (!text) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    const previousText = button.textContent;
+    button.textContent = "Copied";
+    window.setTimeout(() => {
+      button.textContent = previousText;
+    }, 1400);
+  } catch (_error) {
+    showToast("Could not copy code.");
+  }
+});
 
 function typesetMath(element) {
   if (!element || !window.MathJax || !window.MathJax.typesetPromise) {
@@ -166,6 +208,48 @@ function resetTextarea(textarea) {
 function clearEmptyTextarea(textarea) {
   textarea.value = "";
   resetTextarea(textarea);
+}
+
+function insertTextAtSelection(input, text) {
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? start;
+  input.value = `${input.value.slice(0, start)}${text}${input.value.slice(end)}`;
+  const nextPosition = start + text.length;
+  input.setSelectionRange(nextPosition, nextPosition);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function attachPasteFallback(input) {
+  input.addEventListener("keydown", (event) => {
+    const isPasteShortcut =
+      (event.ctrlKey || event.metaKey) && event.code === "KeyV";
+    if (!isPasteShortcut || !navigator.clipboard?.readText) {
+      return;
+    }
+
+    const previousValue = input.value;
+    const previousStart = input.selectionStart;
+    const previousEnd = input.selectionEnd;
+
+    window.setTimeout(async () => {
+      const browserHandledPaste =
+        input.value !== previousValue ||
+        input.selectionStart !== previousStart ||
+        input.selectionEnd !== previousEnd;
+      if (browserHandledPaste || document.activeElement !== input) {
+        return;
+      }
+
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          insertTextAtSelection(input, text);
+        }
+      } catch (_error) {
+        // Browser paste remains the primary path; this fallback is best-effort.
+      }
+    }, 0);
+  });
 }
 
 function scrollMessagesToBottom() {
@@ -396,6 +480,7 @@ async function refreshModelStatus() {
 
 textareas.forEach((textarea) => {
   resizeTextarea(textarea);
+  attachPasteFallback(textarea);
 
   textarea.addEventListener("input", () => {
     resizeTextarea(textarea);
@@ -732,6 +817,8 @@ function startInlineRename({ chatId, titleElement, currentTitle, renameUrl, mode
     event.preventDefault();
     event.stopPropagation();
   });
+
+  attachPasteFallback(input);
 
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {

@@ -646,7 +646,27 @@ button:disabled {
   border-radius: 10px;
   margin: 10px 0;
   overflow-x: auto;
-  padding: 12px;
+  padding: 38px 12px 12px;
+  position: relative;
+}
+
+.message.assistant .code-copy-button {
+  background: #151515;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 8px;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+}
+
+.message.assistant .code-copy-button:hover {
+  border-color: var(--text);
+  color: var(--text);
 }
 
 .message.assistant code {

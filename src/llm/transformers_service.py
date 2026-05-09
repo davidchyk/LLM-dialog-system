@@ -200,18 +200,18 @@ class TransformersLLMService(BaseLLMService):
                 cleaned = cleaned.split(marker, 1)[0].strip()
 
         lines: list[str] = []
-        for line in cleaned.splitlines():
-            line = line.strip()
-            if not line:
+        for raw_line in cleaned.splitlines():
+            line = raw_line.rstrip()
+            if not line.strip():
                 continue
-            if lines and lines[-1] == line:
+            if lines and lines[-1].strip() == line.strip():
                 continue
             lines.append(line)
 
-        cleaned = "\n".join(lines).strip()
+        cleaned = "\n".join(lines).strip("\n")
         if self._contains_false_identity_claim(cleaned):
             return self._identity_response()
-        return cleaned or "I could not generate a useful response."
+        return cleaned if cleaned.strip() else "I could not generate a useful response."
 
     def _is_identity_question(self, user_message: str) -> bool:
         normalized = user_message.strip().casefold()
