@@ -52,7 +52,7 @@ def test_default_generation_preset_is_balanced(monkeypatch):
 
     assert reloaded.AppConfig.GENERATION_PRESET == "balanced"
     assert reloaded.AppConfig.TEMPERATURE == 0.7
-    assert reloaded.AppConfig.MAX_NEW_TOKENS == 128
+    assert reloaded.AppConfig.MAX_NEW_TOKENS == 768
 
 
 def test_valid_generation_preset_is_applied(monkeypatch):
@@ -60,7 +60,7 @@ def test_valid_generation_preset_is_applied(monkeypatch):
 
     assert reloaded.AppConfig.GENERATION_PRESET == "creative"
     assert reloaded.AppConfig.TEMPERATURE == 0.95
-    assert reloaded.AppConfig.MAX_NEW_TOKENS == 180
+    assert reloaded.AppConfig.MAX_NEW_TOKENS == 1024
 
 
 def test_invalid_generation_preset_falls_back_to_balanced(monkeypatch):

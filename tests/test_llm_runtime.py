@@ -83,7 +83,7 @@ def test_runtime_switch_applies_generation_preset(monkeypatch):
     from src.config import AppConfig
 
     monkeypatch.setattr(AppConfig, "GENERATION_PRESET", "balanced")
-    monkeypatch.setattr(AppConfig, "MAX_NEW_TOKENS", 128)
+    monkeypatch.setattr(AppConfig, "MAX_NEW_TOKENS", 768)
     monkeypatch.setattr(AppConfig, "TEMPERATURE", 0.7)
     monkeypatch.setattr(AppConfig, "TOP_P", 0.9)
     monkeypatch.setattr(AppConfig, "DO_SAMPLE", True)
@@ -103,7 +103,7 @@ def test_runtime_switch_applies_generation_preset(monkeypatch):
     )
 
     assert AppConfig.GENERATION_PRESET == "creative"
-    assert AppConfig.MAX_NEW_TOKENS == 180
+    assert AppConfig.MAX_NEW_TOKENS == 1024
 
 
 def test_runtime_switch_applies_adapter_path(monkeypatch):

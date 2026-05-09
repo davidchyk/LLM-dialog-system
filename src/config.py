@@ -29,21 +29,21 @@ class GenerationPreset(TypedDict):
 
 GENERATION_PRESETS: dict[str, GenerationPreset] = {
     "precise": {
-        "max_new_tokens": 128,
+        "max_new_tokens": 512,
         "temperature": 0.2,
         "top_p": 0.8,
         "do_sample": True,
         "repetition_penalty": 1.1,
     },
     "balanced": {
-        "max_new_tokens": 128,
+        "max_new_tokens": 768,
         "temperature": 0.7,
         "top_p": 0.9,
         "do_sample": True,
         "repetition_penalty": 1.05,
     },
     "creative": {
-        "max_new_tokens": 180,
+        "max_new_tokens": 1024,
         "temperature": 0.95,
         "top_p": 0.95,
         "do_sample": True,

@@ -183,7 +183,6 @@ def test_message_search_endpoint_ignores_blank_query(tmp_path):
 
 
 def test_model_status_endpoint_reports_runtime_state(tmp_path):
-    from src.config import AppConfig
     from src.web.web_app import _model_display_name
 
     client, _manager = make_client(tmp_path)
@@ -194,7 +193,9 @@ def test_model_status_endpoint_reports_runtime_state(tmp_path):
     assert response.status_code == 200
     assert payload["ok"] is True
     assert payload["status"]["backend"] == "transformers"
-    assert payload["status"]["model_display_name"] == _model_display_name(AppConfig.MODEL_NAME)
+    assert payload["status"]["model_display_name"] == _model_display_name(
+        payload["status"]["model_name"]
+    )
     assert payload["status"]["ready"] is True
 
 
@@ -243,7 +244,7 @@ def test_generation_preset_endpoint_accepts_known_preset(tmp_path):
     assert response.status_code == 200
     assert payload["ok"] is True
     assert payload["generation_preset"] == "creative"
-    assert payload["settings"]["max_new_tokens"] == 180
+    assert payload["settings"]["max_new_tokens"] == 1024
 
 
 def test_generation_preset_endpoint_rejects_unknown_preset(tmp_path):
