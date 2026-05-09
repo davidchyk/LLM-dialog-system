@@ -1,0 +1,28 @@
+{
+  "models": [
+    {
+      "name": "Qwen2.5 1.5B Instruct",
+      "path": "models/qwen2.5-1.5b-instruct",
+      "backend": "transformers",
+      "generation_preset": "balanced",
+      "adapter_path": "",
+      "description": "Stronger local instruction model for regular chat and coding checks."
+    },
+    {
+      "name": "Qwen2.5 0.5B Instruct",
+      "path": "models/qwen2.5-0.5b-instruct",
+      "backend": "transformers",
+      "generation_preset": "balanced",
+      "adapter_path": "",
+      "description": "Smaller fallback model for faster CPU checks."
+    },
+    {
+      "name": "DistilGPT2",
+      "path": "models/distilgpt2",
+      "backend": "transformers",
+      "generation_preset": "precise",
+      "adapter_path": "",
+      "description": "Tiny baseline model for quick local checks."
+    }
+  ]
+}

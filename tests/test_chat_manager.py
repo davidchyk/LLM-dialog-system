@@ -9,12 +9,12 @@ from src.core.chat_manager import (
     DuplicateChatTitleError,
 )
 from src.llm.base import BaseLLMService
-from src.llm.mock_service import MockLLMService
+from tests.fake_llm_service import FakeLLMService
 from tests.in_memory_storage import InMemoryStorage
 
 
 def make_manager(tmp_path) -> ChatManager:
-    return ChatManager(storage=InMemoryStorage(), llm_service=MockLLMService())
+    return ChatManager(storage=InMemoryStorage(), llm_service=FakeLLMService())
 
 
 def test_create_chat_with_custom_title(tmp_path):
@@ -161,7 +161,7 @@ def test_send_message_saves_user_and_assistant_messages(tmp_path):
 
     assert result is not None
     updated_chat, response = result
-    assert response == 'Mock LLM response: you said "Hello"'
+    assert response == 'Fake LLM response: you said "Hello"'
     assert [message.role for message in updated_chat.messages] == [
         "user",
         "assistant",

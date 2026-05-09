@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and configurable LLM backends. The default LLM backend remains mock-based. Transformers inference is available for local models, including `distilgpt2` and the recommended `Qwen/Qwen2.5-0.5B-Instruct` path at `models/qwen2.5-0.5b-instruct`. Course project documentation has the first two chapters, UML diagrams, and generated diagram images.
+The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a local Transformers LLM backend. Transformers inference is available for local models, including `distilgpt2`, `Qwen/Qwen2.5-0.5B-Instruct`, and the recommended `Qwen/Qwen2.5-1.5B-Instruct` path at `models/qwen2.5-1.5b-instruct`. Course project documentation has the first two chapters, UML diagrams, and generated diagram images.
 
 ## Completed
 
@@ -11,7 +11,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 - [x] Chat creation and selection
 - [x] Chat rename and delete
 - [x] PostgreSQL storage
-- [x] Mock LLM service
+- [x] Local Transformers LLM service
 - [x] Dark minimal chat UI
 - [x] Toast notifications
 - [x] Auto-resizing message input
@@ -31,7 +31,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and conf
 ### LLM Integration
 
 - [x] Add `BaseLLMService` interface
-- [x] Keep `MockLLMService`
+- [x] Remove legacy `MockLLMService`
 - [x] Add LLM backend factory
 - [x] Add backend configuration through environment variables
 - [x] Implement real `TransformersLLMService`

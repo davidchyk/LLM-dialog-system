@@ -4,7 +4,7 @@
 
 ## Description
 
-This is a local Python MVP for dialog interaction with large language models. The project includes a Flask web interface, a console CLI mode, PostgreSQL chat storage, a mock LLM backend, and optional local HuggingFace Transformers inference.
+This is a local Python MVP for dialog interaction with large language models. The project includes a Flask web interface, a console CLI mode, PostgreSQL chat storage, and local HuggingFace Transformers inference.
 
 ## Current Features
 
@@ -13,8 +13,7 @@ This is a local Python MVP for dialog interaction with large language models. Th
 * Chat creation and selection
 * Chat rename and delete in the web UI
 * Message history stored in PostgreSQL
-* Mock assistant responses through configurable `MockLLMService`
-* Optional local Transformers backend with chat-template support for instruction models
+* Local Transformers backend with chat-template support for instruction models
 * Optional PEFT LoRA/QLoRA adapter loading for local Transformers models
 * Sidebar search, toast notifications, auto-resizing input, and auto-scroll
 * Assistant Markdown/code block rendering in the web UI
@@ -29,7 +28,7 @@ LLM-dialog-system/
 ├── requirements.txt       # Python dependencies
 ├── src/
 │   ├── core/              # ChatManager and dataclass models
-│   ├── llm/               # LLM backend interface, factory, mock and Transformers backends
+│   ├── llm/               # LLM backend interface, factory, and Transformers backend
 │   ├── storage/           # Storage interface and PostgreSQL storage backend
 │   ├── web/               # Flask routes, templates, static files
 │   └── cli/               # Console interface
@@ -60,12 +59,13 @@ Copy-Item .env.example .env
 
 Then edit `.env`.
 
-Minimal PostgreSQL + mock LLM example:
+Minimal PostgreSQL + local LLM example:
 
 ```text
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/llm_dialog_system
 
-LLM_BACKEND=mock
+LLM_BACKEND=transformers
+MODEL_NAME=models/qwen2.5-1.5b-instruct
 GENERATION_PRESET=balanced
 ```
 
@@ -75,7 +75,7 @@ Local Qwen example:
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/llm_dialog_system
 
 LLM_BACKEND=transformers
-MODEL_NAME=models/qwen2.5-0.5b-instruct
+MODEL_NAME=models/qwen2.5-1.5b-instruct
 GENERATION_PRESET=balanced
 ```
 
@@ -192,24 +192,17 @@ pytest -m postgres
 
 ## LLM Backend
 
-The system uses a configurable LLM backend selected through the `LLM_BACKEND` environment variable. The default backend is `mock`.
+The system uses a configurable LLM backend selected through the `LLM_BACKEND` environment variable. The default backend is `transformers`.
 
 Available backends:
 
-* `mock` - fast mock responses for development and tests.
 * `transformers` - local HuggingFace Transformers inference.
-
-Mock mode:
-
-```text
-LLM_BACKEND=mock
-```
 
 Transformers mode:
 
 ```text
 LLM_BACKEND=transformers
-MODEL_NAME=models/qwen2.5-0.5b-instruct
+MODEL_NAME=models/qwen2.5-1.5b-instruct
 ```
 
 ## Recommended Local Chat Model
@@ -217,13 +210,13 @@ MODEL_NAME=models/qwen2.5-0.5b-instruct
 For basic local chat, use:
 
 ```text
-Qwen/Qwen2.5-0.5B-Instruct
+Qwen/Qwen2.5-1.5B-Instruct
 ```
 
-Download it to `models/qwen2.5-0.5b-instruct`:
+Download it to `models/qwen2.5-1.5b-instruct`:
 
 ```powershell
-python scripts/download_qwen_0_5b.py
+python scripts/_models_download.py --repo-id Qwen/Qwen2.5-1.5B-Instruct --local-dir models/qwen2.5-1.5b-instruct
 ```
 
 This model is much better for chat than `distilgpt2`, but it is still a small local model and its quality is limited compared to large cloud models.
@@ -257,7 +250,7 @@ Explicit generation variables such as `MAX_NEW_TOKENS`, `TEMPERATURE`, `TOP_P`, 
 
 The web UI scans the local `models/` directory and shows available model folders in the sidebar. A folder is considered a local model when it contains `config.json` and model weights such as `*.safetensors` or `pytorch_model.bin`.
 
-Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh the page to see it in the sidebar. You can load a listed model or unload the active model back to the mock backend without restarting the Flask app.
+Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh the page to see it in the sidebar. You can load or unload a listed model without restarting the Flask app.
 
 Configured models can also include a PEFT adapter path through `adapter_path` in `model_config.json`. The same can be set globally with `ADAPTER_PATH`.
 
@@ -267,7 +260,7 @@ The Transformers backend can load a PEFT adapter on top of the base model:
 
 ```text
 LLM_BACKEND=transformers
-MODEL_NAME=models/qwen2.5-0.5b-instruct
+MODEL_NAME=models/qwen2.5-1.5b-instruct
 ADAPTER_PATH=adapters/qwen-course-lora
 ```
 

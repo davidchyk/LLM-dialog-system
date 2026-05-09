@@ -346,8 +346,8 @@ function updateModelStateLabel(status) {
   modelState.classList.remove("ready", "loading", "error", "not-loaded");
   modelState.classList.add(state.replace("_", "-"));
   if (modelName) {
-    modelName.textContent = status.model_display_name || status.model_name || "mock";
-    modelName.title = status.model_name || "mock";
+    modelName.textContent = status.model_display_name || status.model_name || "not loaded";
+    modelName.title = status.model_name || "not loaded";
   }
   if (adapterName) {
     adapterName.textContent = status.adapter_display_name || "none";
@@ -497,7 +497,7 @@ document.querySelectorAll("[data-model-switch]").forEach((button) => {
     const backend = button.dataset.modelBackend || "transformers";
     const generationPreset = button.dataset.modelPreset || generationPresetSelect?.value || "";
     const adapterPath = button.dataset.adapterPath || "";
-    if (!modelPath && backend !== "mock") {
+    if (!modelPath) {
       return;
     }
 
@@ -532,7 +532,7 @@ document.querySelector("[data-model-unload]")?.addEventListener("click", async (
   try {
     const data = await postJson("/api/model/unload");
     updateModelStateLabel(data.status);
-    showToast("Model unloaded. Mock backend is active.", "success", 2200);
+    showToast("Model unloaded.", "success", 2200);
   } catch (error) {
     await refreshModelStatus();
     showToast(error.message);

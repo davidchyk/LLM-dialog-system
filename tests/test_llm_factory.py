@@ -6,36 +6,49 @@ import pytest
 from src.llm.base import BaseLLMService
 import src.llm.factory as llm_factory
 from src.llm.factory import UnsupportedLLMBackendError, create_llm_service
-from src.llm.mock_service import MockLLMService
 from src.llm.unavailable_service import UnavailableLLMService
 
 
-def test_create_llm_service_returns_mock_by_default(monkeypatch):
+def test_create_llm_service_uses_transformers_by_default(monkeypatch):
     monkeypatch.delenv("LLM_BACKEND", raising=False)
+    monkeypatch.setattr(
+        llm_factory,
+        "_create_transformers_service",
+        lambda model_name_or_path="models/qwen2.5-1.5b-instruct",
+        generation_preset=None,
+        adapter_path=None: _FakeTransformersService(),
+    )
 
     service = create_llm_service()
 
-    assert isinstance(service, MockLLMService)
+    assert isinstance(service, _FakeTransformersService)
 
 
-def test_create_llm_service_returns_mock_for_explicit_mock():
-    service = create_llm_service("mock")
+def test_create_llm_service_normalizes_backend_name(monkeypatch):
+    monkeypatch.setattr(llm_factory, "_create_transformers_service", (
+        lambda model_name_or_path="models/qwen2.5-1.5b-instruct",
+        generation_preset=None,
+        adapter_path=None: _FakeTransformersService()
+    ))
 
-    assert isinstance(service, MockLLMService)
+    service = create_llm_service("TRANSFORMERS")
 
-
-def test_create_llm_service_normalizes_backend_name():
-    service = create_llm_service("MOCK")
-
-    assert isinstance(service, MockLLMService)
+    assert isinstance(service, _FakeTransformersService)
 
 
 def test_create_llm_service_reads_environment_variable(monkeypatch):
-    monkeypatch.setenv("LLM_BACKEND", "mock")
+    monkeypatch.setenv("LLM_BACKEND", "transformers")
+    monkeypatch.setattr(
+        llm_factory,
+        "_create_transformers_service",
+        lambda model_name_or_path="models/qwen2.5-1.5b-instruct",
+        generation_preset=None,
+        adapter_path=None: _FakeTransformersService(),
+    )
 
     service = create_llm_service()
 
-    assert isinstance(service, MockLLMService)
+    assert isinstance(service, _FakeTransformersService)
 
 
 def test_unsupported_backend_raises_clear_error():
@@ -43,30 +56,23 @@ def test_unsupported_backend_raises_clear_error():
         create_llm_service("unknown")
 
 
-def test_mock_service_returns_expected_response():
-    service = MockLLMService()
-
-    response = service.generate_response("Hello", history=[])
-
-    assert response == 'Mock LLM response: you said "Hello"'
+class _FakeTransformersService(BaseLLMService):
+    def generate_response(self, user_message, history=None):
+        return "fake"
 
 
 def test_transformers_backend_uses_transformers_factory(monkeypatch):
-    class FakeTransformersService(BaseLLMService):
-        def generate_response(self, user_message, history=None):
-            return "fake"
-
     monkeypatch.setattr(
         llm_factory,
         "_create_transformers_service",
         lambda model_name_or_path="models/distilgpt2",
         generation_preset=None,
-        adapter_path=None: FakeTransformersService(),
+        adapter_path=None: _FakeTransformersService(),
     )
 
     service = create_llm_service("transformers")
 
-    assert isinstance(service, FakeTransformersService)
+    assert isinstance(service, _FakeTransformersService)
 
 
 def test_transformers_backend_falls_back_when_model_loading_fails(monkeypatch):

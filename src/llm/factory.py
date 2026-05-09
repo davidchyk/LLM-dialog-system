@@ -4,7 +4,6 @@ import os
 
 from src.config import AppConfig, GENERATION_PRESETS, GenerationPreset
 from src.llm.base import BaseLLMService
-from src.llm.mock_service import MockLLMService
 from src.llm.unavailable_service import UnavailableLLMService
 
 
@@ -18,11 +17,8 @@ def create_llm_service(
     generation_preset: str | None = None,
     adapter_path: str | None = None,
 ) -> BaseLLMService:
-    backend_name = (backend or os.getenv("LLM_BACKEND") or "mock").strip()
-    normalized_backend = backend_name.casefold() or "mock"
-
-    if normalized_backend == "mock":
-        return MockLLMService()
+    backend_name = (backend or os.getenv("LLM_BACKEND") or "transformers").strip()
+    normalized_backend = backend_name.casefold() or "transformers"
 
     if normalized_backend == "transformers":
         model_name = model_name_or_path or AppConfig.MODEL_NAME
@@ -42,7 +38,7 @@ def create_llm_service(
             )
 
     raise UnsupportedLLMBackendError(
-        f"Unsupported LLM backend: {backend_name}. Supported backends: mock, transformers."
+        f"Unsupported LLM backend: {backend_name}. Supported backends: transformers."
     )
 
 

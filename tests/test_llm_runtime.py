@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from src.core.chat_manager import ChatManager
 from src.llm.base import BaseLLMService
-from src.llm.mock_service import MockLLMService
 from src.llm.runtime import LLMRuntime
+from src.llm.unavailable_service import UnavailableLLMService
+from tests.fake_llm_service import FakeLLMService
 from tests.in_memory_storage import InMemoryStorage
 
 
@@ -22,11 +23,11 @@ class UnloadableService(BaseLLMService):
 def make_manager(service=None):
     return ChatManager(
         storage=InMemoryStorage(),
-        llm_service=service or MockLLMService(),
+        llm_service=service or FakeLLMService(),
     )
 
 
-def test_runtime_unload_replaces_service_with_mock():
+def test_runtime_unload_marks_model_not_loaded():
     service = UnloadableService()
     manager = make_manager(service)
     runtime = LLMRuntime(manager)
@@ -34,8 +35,8 @@ def test_runtime_unload_replaces_service_with_mock():
     runtime.unload()
 
     assert service.unloaded is True
-    assert isinstance(manager.llm_service, MockLLMService)
-    assert runtime.state == "ready"
+    assert isinstance(manager.llm_service, UnavailableLLMService)
+    assert runtime.state == "not_loaded"
 
 
 def test_runtime_switch_unloads_previous_service(monkeypatch):
@@ -45,13 +46,13 @@ def test_runtime_switch_unloads_previous_service(monkeypatch):
 
     monkeypatch.setattr(
         "src.llm.runtime.create_llm_service",
-        lambda backend, model_name_or_path=None, generation_preset=None, adapter_path=None: MockLLMService(),
+        lambda backend, model_name_or_path=None, generation_preset=None, adapter_path=None: FakeLLMService(),
     )
 
-    runtime.switch("mock")
+    runtime.switch("transformers", model_name_or_path="models/qwen")
 
     assert service.unloaded is True
-    assert isinstance(manager.llm_service, MockLLMService)
+    assert isinstance(manager.llm_service, FakeLLMService)
     assert runtime.state == "ready"
 
 
@@ -92,7 +93,7 @@ def test_runtime_switch_applies_generation_preset(monkeypatch):
 
     monkeypatch.setattr(
         "src.llm.runtime.create_llm_service",
-        lambda backend, model_name_or_path=None, generation_preset=None, adapter_path=None: MockLLMService(),
+        lambda backend, model_name_or_path=None, generation_preset=None, adapter_path=None: FakeLLMService(),
     )
 
     runtime.switch(
@@ -114,7 +115,7 @@ def test_runtime_switch_applies_adapter_path(monkeypatch):
 
     def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
         captured["adapter_path"] = adapter_path
-        return MockLLMService()
+        return FakeLLMService()
 
     monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
 

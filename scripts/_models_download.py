@@ -1,27 +1,45 @@
+from __future__ import annotations
+
+import argparse
 from pathlib import Path
 
 from huggingface_hub import snapshot_download  # type: ignore[reportUnknownVariableType]
 
 
-# Change here:
+DEFAULT_MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_LOCAL_DIR = Path("models/qwen2.5-1.5b-instruct")
 
-"""
-Доступні варіанти:
 
-MODEL_ID = "distilbert/distilgpt2"
-LOCAL_DIR = Path("models/distilgpt2")
-"""
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Download a Hugging Face model.")
+    parser.add_argument(
+        "--repo-id",
+        default=DEFAULT_MODEL_ID,
+        help=f"Hugging Face model repository. Default: {DEFAULT_MODEL_ID}",
+    )
+    parser.add_argument(
+        "--local-dir",
+        default=str(DEFAULT_LOCAL_DIR),
+        help=f"Local model directory. Default: {DEFAULT_LOCAL_DIR.as_posix()}",
+    )
+    parser.add_argument(
+        "--revision",
+        default=None,
+        help="Optional branch, tag, or commit hash.",
+    )
+    return parser.parse_args()
 
-MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
-LOCAL_DIR = Path("models/qwen2.5-0.5b-instruct")
 
 def main() -> None:
-    LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    args = parse_args()
+    local_dir = Path(args.local_dir)
+    local_dir.mkdir(parents=True, exist_ok=True)
 
     path = snapshot_download(
-        repo_id=MODEL_ID,
+        repo_id=args.repo_id,
         repo_type="model",
-        local_dir=str(LOCAL_DIR),
+        local_dir=str(local_dir),
+        revision=args.revision,
         allow_patterns=[
             "config.json",
             "generation_config.json",
@@ -30,7 +48,8 @@ def main() -> None:
             "special_tokens_map.json",
             "vocab.json",
             "merges.txt",
-            "model.safetensors",
+            "*.safetensors",
+            "*.safetensors.index.json",
         ],
         ignore_patterns=[
             "*.h5",

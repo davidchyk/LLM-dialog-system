@@ -2,14 +2,14 @@ from __future__ import annotations
 # pyright: reportUnknownParameterType=false, reportMissingParameterType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportOptionalMemberAccess=false
 
 from src.core.chat_manager import ChatManager
-from src.llm.mock_service import MockLLMService
 from src.llm.unavailable_service import UnavailableLLMService
 from src.web.web_app import create_app
+from tests.fake_llm_service import FakeLLMService
 from tests.in_memory_storage import InMemoryStorage
 
 
 def make_client(tmp_path, model_config_path=None):
-    manager = ChatManager(storage=InMemoryStorage(), llm_service=MockLLMService())
+    manager = ChatManager(storage=InMemoryStorage(), llm_service=FakeLLMService())
     app = create_app(
         manager,
         models_dir=tmp_path / "models",
@@ -109,9 +109,7 @@ def test_send_endpoint_adds_user_and_assistant_messages(tmp_path):
     assert response.status_code == 200
     assert payload["ok"] is True
     assert payload["user_message"]["content"] == "Hello"
-    assert payload["assistant_message"]["content"] == (
-        'Mock LLM response: you said "Hello"'
-    )
+    assert payload["assistant_message"]["content"] == 'Fake LLM response: you said "Hello"'
     assert payload["assistant_message"]["role"] == "assistant"
     assert manager.get_chat(chat.id) is not None
     assert len(manager.get_chat(chat.id).messages) == 2
@@ -185,6 +183,9 @@ def test_message_search_endpoint_ignores_blank_query(tmp_path):
 
 
 def test_model_status_endpoint_reports_runtime_state(tmp_path):
+    from src.config import AppConfig
+    from src.web.web_app import _model_display_name
+
     client, _manager = make_client(tmp_path)
 
     response = client.get("/api/model/status")
@@ -192,8 +193,8 @@ def test_model_status_endpoint_reports_runtime_state(tmp_path):
     payload = response.get_json()
     assert response.status_code == 200
     assert payload["ok"] is True
-    assert payload["status"]["backend"] == "mock"
-    assert payload["status"]["model_display_name"] == "mock"
+    assert payload["status"]["backend"] == "transformers"
+    assert payload["status"]["model_display_name"] == _model_display_name(AppConfig.MODEL_NAME)
     assert payload["status"]["ready"] is True
 
 
@@ -206,19 +207,16 @@ def test_model_switch_endpoint_rejects_missing_model_name(tmp_path):
     assert response.get_json()["error"] == "Model name is required."
 
 
-def test_model_switch_endpoint_can_activate_mock_backend(tmp_path):
-    client, manager = make_client(tmp_path)
+def test_model_switch_endpoint_rejects_mock_backend(tmp_path):
+    client, _manager = make_client(tmp_path)
 
     response = client.post("/api/model/switch", json={"backend": "mock"})
 
-    payload = response.get_json()
-    assert response.status_code == 200
-    assert payload["ok"] is True
-    assert payload["status"]["backend"] == "mock"
-    assert isinstance(manager.llm_service, MockLLMService)
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Unsupported LLM backend."
 
 
-def test_model_unload_endpoint_activates_mock_backend(tmp_path):
+def test_model_unload_endpoint_marks_model_not_loaded(tmp_path):
     client, manager = make_client(tmp_path)
     manager.llm_service = UnavailableLLMService(
         backend="transformers",
@@ -230,9 +228,10 @@ def test_model_unload_endpoint_activates_mock_backend(tmp_path):
 
     payload = response.get_json()
     assert response.status_code == 200
-    assert payload["status"]["backend"] == "mock"
-    assert payload["status"]["ready"] is True
-    assert isinstance(manager.llm_service, MockLLMService)
+    assert payload["status"]["backend"] == "transformers"
+    assert payload["status"]["state"] == "not_loaded"
+    assert payload["status"]["ready"] is False
+    assert isinstance(manager.llm_service, UnavailableLLMService)
 
 
 def test_generation_preset_endpoint_accepts_known_preset(tmp_path):

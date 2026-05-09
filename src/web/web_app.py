@@ -155,7 +155,7 @@ def create_app(
         preset = str(data.get("generation_preset", "")).strip().casefold() or None
         adapter_path = str(data.get("adapter_path", "")).strip()
 
-        if backend not in {"mock", "transformers"}:
+        if backend != "transformers":
             return jsonify({"ok": False, "error": "Unsupported LLM backend."}), 400
         if backend == "transformers" and not model_name:
             return jsonify({"ok": False, "error": "Model name is required."}), 400
@@ -275,8 +275,8 @@ def _get_ui_context(
     models_dir: str | Path = "models",
     model_config_path: str | Path = "model_config.json",
 ) -> dict[str, object]:
-    backend = AppConfig.LLM_BACKEND.strip().casefold() or "mock"
-    model_name = AppConfig.MODEL_NAME if backend == "transformers" else "mock"
+    backend = AppConfig.LLM_BACKEND.strip().casefold() or "transformers"
+    model_name = AppConfig.MODEL_NAME
     return {
         "llm_backend": backend,
         "model_name": model_name,
@@ -290,7 +290,7 @@ def _get_ui_context(
 
 def _model_display_name(model_name: str) -> str:
     if not model_name:
-        return "mock"
+        return "not loaded"
     normalized = model_name.replace("\\", "/").rstrip("/")
     return normalized.split("/")[-1] or normalized
 
@@ -344,12 +344,12 @@ def _model_status(
     backend = getattr(
         service,
         "backend",
-        "transformers" if is_transformers else "mock",
+        "transformers",
     )
     model_name = (
         getattr(service, "model_name_or_path", context["model_name"])
         if is_transformers or load_error
-        else "mock"
+        else context["model_name"]
     )
     adapter_path = getattr(service, "adapter_path", "")
     is_ready = not is_transformers or (
@@ -360,7 +360,9 @@ def _model_status(
         is_ready = False
     runtime_state = llm_runtime.state if llm_runtime is not None else ""
     state = runtime_state or ("error" if load_error else ("ready" if is_ready else "not_loaded"))
-    if runtime_state == "error" or load_error:
+    if runtime_state == "not_loaded":
+        state = "not_loaded"
+    elif runtime_state == "error" or load_error:
         state = "error"
 
     return {

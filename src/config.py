@@ -123,8 +123,8 @@ def get_database_url() -> str:
 
 
 class AppConfig:
-    LLM_BACKEND = os.getenv("LLM_BACKEND", "mock")
-    MODEL_NAME = os.getenv("MODEL_NAME", "models/distilgpt2")
+    LLM_BACKEND = os.getenv("LLM_BACKEND", "transformers")
+    MODEL_NAME = os.getenv("MODEL_NAME", "models/qwen2.5-1.5b-instruct")
     ADAPTER_PATH = os.getenv("ADAPTER_PATH", "").strip()
     MODEL_CONFIG_PATH = os.getenv("MODEL_CONFIG_PATH", "model_config.json")
     GENERATION_PRESET = _parse_generation_preset()

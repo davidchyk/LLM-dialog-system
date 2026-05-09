@@ -6,7 +6,7 @@ import src.config as config
 from src.core.chat_manager import ChatManager
 from src.llm.base import BaseLLMService
 from src.llm.factory import create_llm_service
-from src.llm.mock_service import MockLLMService
+from src.llm.unavailable_service import UnavailableLLMService
 
 
 class LLMRuntime:
@@ -20,6 +20,8 @@ class LLMRuntime:
     def service(self) -> BaseLLMService:
         return self.manager.llm_service
 
+    # TODO - Add logging for load/unload operations and errors.
+
     def switch(
         self,
         backend: str,
@@ -27,7 +29,7 @@ class LLMRuntime:
         generation_preset: str | None = None,
         adapter_path: str | None = None,
     ) -> BaseLLMService:
-        normalized_backend = backend.strip().casefold() or "mock"
+        normalized_backend = backend.strip().casefold() or "transformers"
         with self._lock:
             self.state = "loading"
             self.error = ""
@@ -49,20 +51,21 @@ class LLMRuntime:
                 config.AppConfig.MODEL_NAME = model_name_or_path
                 config.AppConfig.ADAPTER_PATH = adapter_path or ""
                 self._apply_generation_preset(generation_preset)
-            elif normalized_backend == "mock":
-                config.AppConfig.LLM_BACKEND = "mock"
-                config.AppConfig.ADAPTER_PATH = ""
             return service
 
     def unload(self) -> BaseLLMService:
         with self._lock:
             self._unload_current_locked()
-            service = MockLLMService()
+            service = UnavailableLLMService(
+                backend="transformers",
+                model_name_or_path=config.AppConfig.MODEL_NAME,
+                adapter_path=config.AppConfig.ADAPTER_PATH,
+                load_error="Model is unloaded.",
+            )
             self.manager.llm_service = service
-            self.state = "ready"
-            self.error = ""
-            config.AppConfig.LLM_BACKEND = "mock"
-            config.AppConfig.ADAPTER_PATH = ""
+            self.state = "not_loaded"
+            self.error = "Model is unloaded."
+            config.AppConfig.LLM_BACKEND = "transformers"
             return service
 
     def _unload_current_locked(self) -> None:
