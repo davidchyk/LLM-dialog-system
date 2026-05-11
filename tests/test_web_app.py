@@ -1,11 +1,25 @@
 from __future__ import annotations
 # pyright: reportUnknownParameterType=false, reportMissingParameterType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportOptionalMemberAccess=false
 
+from threading import Event, Thread
+
 from src.core.chat_manager import ChatManager
 from src.llm.unavailable_service import UnavailableLLMService
 from src.web.web_app import create_app
 from tests.fake_llm_service import FakeLLMService
 from tests.in_memory_storage import InMemoryStorage
+
+
+class BlockingLLMService(FakeLLMService):
+    def __init__(self, started: Event, release: Event) -> None:
+        super().__init__()
+        self.started = started
+        self.release = release
+
+    def generate_response(self, user_message, history=None):
+        self.started.set()
+        self.release.wait(timeout=5)
+        return super().generate_response(user_message, history)
 
 
 def make_client(tmp_path, model_config_path=None):
@@ -215,6 +229,135 @@ def test_model_switch_endpoint_rejects_mock_backend(tmp_path):
 
     assert response.status_code == 400
     assert response.get_json()["error"] == "Unsupported LLM backend."
+
+
+def test_model_switch_endpoint_reports_loading_and_rejects_parallel_switch(
+    tmp_path, monkeypatch
+):
+    started = Event()
+    release = Event()
+    client, _manager = make_client(tmp_path)
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        started.set()
+        release.wait(timeout=5)
+        return FakeLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    response = client.post(
+        "/api/model/switch",
+        json={"backend": "transformers", "model_name": "models/qwen"},
+    )
+    started.wait(timeout=5)
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["status"]["state"] == "loading"
+    assert payload["status"]["operation"] == "switch"
+    assert payload["status"]["ready"] is False
+
+    second_response = client.post(
+        "/api/model/switch",
+        json={"backend": "transformers", "model_name": "models/other"},
+    )
+
+    assert second_response.status_code == 409
+    assert second_response.get_json()["status"]["state"] == "loading"
+
+    release.set()
+
+
+def test_send_endpoint_rejects_message_while_model_is_loading(tmp_path, monkeypatch):
+    started = Event()
+    release = Event()
+    client, manager = make_client(tmp_path)
+    chat = manager.create_chat("Web chat")
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        started.set()
+        release.wait(timeout=5)
+        return FakeLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    client.post(
+        "/api/model/switch",
+        json={"backend": "transformers", "model_name": "models/qwen"},
+    )
+    started.wait(timeout=5)
+
+    response = client.post(f"/chat/{chat.id}/send", json={"message": "Hello"})
+
+    assert response.status_code == 409
+    assert response.get_json()["ok"] is False
+
+    release.set()
+
+
+def test_model_switch_endpoint_rejects_switch_while_response_is_generating(tmp_path):
+    started = Event()
+    release = Event()
+    manager = ChatManager(
+        storage=InMemoryStorage(),
+        llm_service=BlockingLLMService(started, release),
+    )
+    chat = manager.create_chat("Web chat")
+    app = create_app(manager, models_dir=tmp_path / "models")
+    app.config.update(TESTING=True)
+    send_client = app.test_client()
+    switch_client = app.test_client()
+    send_response = {}
+
+    def send_message():
+        send_response["response"] = send_client.post(
+            f"/chat/{chat.id}/send",
+            json={"message": "Hello"},
+        )
+
+    thread = Thread(target=send_message)
+    thread.start()
+    started.wait(timeout=5)
+
+    response = switch_client.post(
+        "/api/model/switch",
+        json={"backend": "transformers", "model_name": "models/qwen"},
+    )
+
+    release.set()
+    thread.join(timeout=5)
+
+    assert response.status_code == 409
+    assert response.get_json()["status"]["operation"] == "generate"
+    assert send_response["response"].status_code == 200
+
+
+def test_generation_preset_endpoint_rejects_change_while_model_is_loading(
+    tmp_path, monkeypatch
+):
+    started = Event()
+    release = Event()
+    client, _manager = make_client(tmp_path)
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        started.set()
+        release.wait(timeout=5)
+        return FakeLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    client.post(
+        "/api/model/switch",
+        json={"backend": "transformers", "model_name": "models/qwen"},
+    )
+    started.wait(timeout=5)
+
+    response = client.post("/api/generation-preset", json={"preset": "creative"})
+
+    assert response.status_code == 409
+    assert response.get_json()["status"]["state"] == "loading"
+
+    release.set()
 
 
 def test_model_unload_endpoint_marks_model_not_loaded(tmp_path):

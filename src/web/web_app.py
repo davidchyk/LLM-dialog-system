@@ -67,8 +67,14 @@ def create_app(
         if not content:
             flash("Message cannot be empty.")
             return redirect(url_for("chat_page", chat_id=chat_id))
+        if not llm_runtime.begin_generation():
+            flash("Model is busy. Wait until the current operation finishes.")
+            return redirect(url_for("chat_page", chat_id=chat_id))
 
-        result = manager.send_message(chat_id, content)
+        try:
+            result = manager.send_message(chat_id, content)
+        finally:
+            llm_runtime.end_generation()
         if result is None:
             flash("Chat was not found.")
             return redirect(url_for("index"))
@@ -81,8 +87,18 @@ def create_app(
         content = str(data.get("message", "")).strip()
         if not content:
             return jsonify({"ok": False, "error": "Message cannot be empty."}), 400
+        if not llm_runtime.begin_generation():
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "Model is busy. Wait until the current operation finishes.",
+                }
+            ), 409
 
-        result = manager.send_message(chat_id, content)
+        try:
+            result = manager.send_message(chat_id, content)
+        finally:
+            llm_runtime.end_generation()
         if result is None:
             return jsonify({"ok": False, "error": "Chat was not found."}), 404
 
@@ -160,12 +176,20 @@ def create_app(
         if backend == "transformers" and not model_name:
             return jsonify({"ok": False, "error": "Model name is required."}), 400
 
-        llm_runtime.switch(
+        started = llm_runtime.switch_async(
             backend,
-            model_name_or_path=model_name or None,
+            model_name_or_path=model_name,
             generation_preset=preset,
             adapter_path=adapter_path or None,
         )
+        if not started:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "A model operation is already running.",
+                    "status": _model_status(manager, llm_runtime, models_dir),
+                }
+            ), 409
         return jsonify(
             {
                 "ok": True,
@@ -175,6 +199,14 @@ def create_app(
 
     @app.post("/api/model/unload")
     def unload_model():
+        if not llm_runtime.can_start_model_operation():
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "A model operation is already running.",
+                    "status": _model_status(manager, llm_runtime, models_dir),
+                }
+            ), 409
         llm_runtime.unload()
         return jsonify(
             {
@@ -210,6 +242,14 @@ def create_app(
     def set_generation_preset():
         data = _request_json_object()
         preset = str(data.get("preset", "")).strip().casefold()
+        if not llm_runtime.can_start_model_operation():
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "A model operation is already running.",
+                    "status": _model_status(manager, llm_runtime, models_dir),
+                }
+            ), 409
         if preset not in GENERATION_PRESETS:
             return jsonify(
                 {
@@ -359,6 +399,8 @@ def _model_status(
     if load_error:
         is_ready = False
     runtime_state = llm_runtime.state if llm_runtime is not None else ""
+    if runtime_state in {"loading", "not_loaded"}:
+        is_ready = False
     state = runtime_state or ("error" if load_error else ("ready" if is_ready else "not_loaded"))
     if runtime_state == "not_loaded":
         state = "not_loaded"
@@ -375,6 +417,7 @@ def _model_status(
         "service": service_name,
         "ready": is_ready,
         "state": state,
+        "operation": llm_runtime.operation if llm_runtime is not None else "",
         "error": load_error or (llm_runtime.error if llm_runtime is not None else ""),
         "local_models": [
             {

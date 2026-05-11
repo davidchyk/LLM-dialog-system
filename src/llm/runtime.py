@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from threading import RLock
+from threading import RLock, Thread
 
 import src.config as config
 from src.core.chat_manager import ChatManager
@@ -13,14 +13,15 @@ class LLMRuntime:
     def __init__(self, manager: ChatManager) -> None:
         self.manager = manager
         self._lock = RLock()
-        self.state = "ready"
-        self.error = ""
+        load_error = getattr(manager.llm_service, "load_error", "")
+        self.state = "error" if load_error else "ready"
+        self.error = load_error
+        self.operation = ""
+        self._active_generations = 0
 
     @property
     def service(self) -> BaseLLMService:
         return self.manager.llm_service
-
-    # TODO - Add logging for load/unload operations and errors.
 
     def switch(
         self,
@@ -31,8 +32,11 @@ class LLMRuntime:
     ) -> BaseLLMService:
         normalized_backend = backend.strip().casefold() or "transformers"
         with self._lock:
+            if self._active_generations > 0:
+                raise RuntimeError("Cannot switch model while generation is running.")
             self.state = "loading"
             self.error = ""
+            self.operation = "switch"
             self._unload_current_locked()
 
             service = create_llm_service(
@@ -45,6 +49,7 @@ class LLMRuntime:
             load_error = getattr(service, "load_error", "")
             self.error = load_error
             self.state = "error" if load_error else "ready"
+            self.operation = ""
 
             if normalized_backend == "transformers" and model_name_or_path:
                 config.AppConfig.LLM_BACKEND = "transformers"
@@ -53,8 +58,73 @@ class LLMRuntime:
                 self._apply_generation_preset(generation_preset)
             return service
 
+    def switch_async(
+        self,
+        backend: str,
+        model_name_or_path: str,
+        generation_preset: str | None = None,
+        adapter_path: str | None = None,
+    ) -> bool:
+        normalized_backend = backend.strip().casefold() or "transformers"
+        with self._lock:
+            if self.state == "loading" or self._active_generations > 0:
+                return False
+            self.state = "loading"
+            self.error = ""
+            self.operation = "switch"
+            self._unload_current_locked()
+
+        thread = Thread(
+            target=self._switch_worker,
+            args=(
+                normalized_backend,
+                model_name_or_path,
+                generation_preset,
+                adapter_path,
+            ),
+            daemon=True,
+        )
+        thread.start()
+        return True
+
+    def _switch_worker(
+        self,
+        backend: str,
+        model_name_or_path: str,
+        generation_preset: str | None,
+        adapter_path: str | None,
+    ) -> None:
+        try:
+            service = create_llm_service(
+                backend,
+                model_name_or_path=model_name_or_path,
+                generation_preset=generation_preset,
+                adapter_path=adapter_path,
+            )
+        except Exception as error:
+            service = UnavailableLLMService(
+                backend=backend,
+                model_name_or_path=model_name_or_path,
+                adapter_path=adapter_path or "",
+                load_error=str(error),
+            )
+        load_error = getattr(service, "load_error", "")
+        with self._lock:
+            self.manager.llm_service = service
+            self.error = load_error
+            self.state = "error" if load_error else "ready"
+            self.operation = ""
+
+            if backend == "transformers":
+                config.AppConfig.LLM_BACKEND = "transformers"
+                config.AppConfig.MODEL_NAME = model_name_or_path
+                config.AppConfig.ADAPTER_PATH = adapter_path or ""
+                self._apply_generation_preset(generation_preset)
+
     def unload(self) -> BaseLLMService:
         with self._lock:
+            if self.state == "loading" or self._active_generations > 0:
+                return self.manager.llm_service
             self._unload_current_locked()
             service = UnavailableLLMService(
                 backend="transformers",
@@ -65,8 +135,31 @@ class LLMRuntime:
             self.manager.llm_service = service
             self.state = "not_loaded"
             self.error = "Model is unloaded."
+            self.operation = ""
             config.AppConfig.LLM_BACKEND = "transformers"
             return service
+
+    def can_generate(self) -> bool:
+        with self._lock:
+            return self.state == "ready" and self._active_generations == 0
+
+    def can_start_model_operation(self) -> bool:
+        with self._lock:
+            return self.state != "loading" and self._active_generations == 0
+
+    def begin_generation(self) -> bool:
+        with self._lock:
+            if self.state != "ready" or self._active_generations > 0:
+                return False
+            self._active_generations += 1
+            self.operation = "generate"
+            return True
+
+    def end_generation(self) -> None:
+        with self._lock:
+            self._active_generations = max(0, self._active_generations - 1)
+            if self._active_generations == 0 and self.operation == "generate":
+                self.operation = ""
 
     def _unload_current_locked(self) -> None:
         unload = getattr(self.manager.llm_service, "unload", None)

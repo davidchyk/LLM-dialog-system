@@ -1,6 +1,9 @@
 from __future__ import annotations
 # pyright: reportUnknownParameterType=false, reportMissingParameterType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownLambdaType=false, reportAttributeAccessIssue=false
 
+from threading import Event
+from time import sleep
+
 from src.core.chat_manager import ChatManager
 from src.llm.base import BaseLLMService
 from src.llm.runtime import LLMRuntime
@@ -127,3 +130,83 @@ def test_runtime_switch_applies_adapter_path(monkeypatch):
 
     assert captured["adapter_path"] == "adapters/qwen-lora"
     assert AppConfig.ADAPTER_PATH == "adapters/qwen-lora"
+
+
+def test_runtime_switch_async_reports_loading_until_worker_finishes(monkeypatch):
+    started = Event()
+    release = Event()
+    manager = make_manager()
+    runtime = LLMRuntime(manager)
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        started.set()
+        release.wait(timeout=5)
+        return FakeLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    accepted = runtime.switch_async("transformers", "models/qwen")
+    started.wait(timeout=5)
+
+    assert accepted is True
+    assert runtime.state == "loading"
+    assert runtime.switch_async("transformers", "models/other") is False
+
+    release.set()
+    for _attempt in range(100):
+        if runtime.state == "ready":
+            break
+        sleep(0.01)
+
+    assert runtime.state == "ready"
+    assert isinstance(manager.llm_service, FakeLLMService)
+
+
+def test_runtime_switch_async_records_worker_error(monkeypatch):
+    manager = make_manager()
+    runtime = LLMRuntime(manager)
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        raise RuntimeError("load failed")
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    assert runtime.switch_async("transformers", "models/broken") is True
+    for _attempt in range(100):
+        if runtime.state == "error":
+            break
+        Event().wait(timeout=0.01)
+
+    assert runtime.state == "error"
+    assert runtime.error == "load failed"
+    assert isinstance(manager.llm_service, UnavailableLLMService)
+
+
+def test_runtime_switch_async_rejects_switch_while_generating():
+    manager = make_manager()
+    runtime = LLMRuntime(manager)
+
+    assert runtime.begin_generation() is True
+
+    assert runtime.switch_async("transformers", "models/qwen") is False
+    assert runtime.operation == "generate"
+
+    runtime.end_generation()
+
+    assert runtime.operation == ""
+
+
+def test_runtime_initializes_error_state_from_unavailable_service():
+    manager = make_manager(
+        UnavailableLLMService(
+            backend="transformers",
+            model_name_or_path="models/missing",
+            load_error="missing",
+        )
+    )
+
+    runtime = LLMRuntime(manager)
+
+    assert runtime.state == "error"
+    assert runtime.error == "missing"
+    assert runtime.can_generate() is False

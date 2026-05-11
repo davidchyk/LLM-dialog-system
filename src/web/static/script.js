@@ -16,6 +16,8 @@ const messageSearchResults = document.querySelector("[data-message-search-result
 const messageSearchList = document.querySelector("[data-message-search-list]");
 let isGenerating = false;
 let searchTimer = null;
+let currentModelStatus = null;
+let modelStatusTimer = null;
 
 function formatLocalTime(isoTimestamp) {
   if (!isoTimestamp) {
@@ -423,6 +425,7 @@ function updateModelStateLabel(status) {
     return;
   }
 
+  currentModelStatus = status;
   const state = status.state || (status.ready ? "ready" : "not_loaded");
   const label = state === "not_loaded" ? "not loaded" : state;
   modelState.textContent = label;
@@ -459,15 +462,16 @@ function setModelLoading(label = "loading") {
   modelState.classList.add("loading");
 }
 
-async function refreshModelStatus() {
+async function refreshModelStatus(options = {}) {
   if (!modelState) {
     return;
   }
 
+  const notifyError = options.notifyError !== false;
   try {
     const data = await getJson("/api/model/status");
     updateModelStateLabel(data.status);
-    if (data.status?.state === "error") {
+    if (data.status?.state === "error" && notifyError) {
       showToast(data.status.error || "Model failed to load.");
     }
   } catch (error) {
@@ -476,6 +480,33 @@ async function refreshModelStatus() {
     modelState.classList.remove("ready", "loading", "not-loaded");
     modelState.classList.add("error");
   }
+}
+
+function pollModelStatusUntilSettled() {
+  if (modelStatusTimer) {
+    window.clearTimeout(modelStatusTimer);
+    modelStatusTimer = null;
+  }
+
+  const poll = async () => {
+    await refreshModelStatus({ notifyError: false });
+    if (currentModelStatus?.state === "loading") {
+      modelStatusTimer = window.setTimeout(poll, 1200);
+      return;
+    }
+    modelStatusTimer = null;
+    if (currentModelStatus?.state === "error") {
+      showToast(currentModelStatus.error || "Model failed to load.");
+    } else if (currentModelStatus?.state === "ready") {
+      showToast(
+        `Model switched to ${currentModelStatus.model_display_name}.`,
+        "success",
+        2200,
+      );
+    }
+  };
+
+  modelStatusTimer = window.setTimeout(poll, 800);
 }
 
 textareas.forEach((textarea) => {
@@ -515,6 +546,10 @@ forms.forEach((form) => {
     if (isGenerating) {
       return;
     }
+    if (currentModelStatus && currentModelStatus.state !== "ready") {
+      showToast("Model is not ready yet.");
+      return;
+    }
 
     const message = textarea.value.trim();
     if (message === "") {
@@ -549,6 +584,7 @@ forms.forEach((form) => {
       scheduleScrollToBottom();
     } finally {
       isGenerating = false;
+      await refreshModelStatus({ notifyError: false });
       submitButton?.removeAttribute("disabled");
       textarea.focus();
     }
@@ -585,6 +621,10 @@ document.querySelectorAll("[data-model-switch]").forEach((button) => {
     if (!modelPath) {
       return;
     }
+    if (isGenerating || currentModelStatus?.operation === "generate") {
+      showToast("Model is generating a response.");
+      return;
+    }
 
     button.setAttribute("disabled", "disabled");
     setModelLoading("loading");
@@ -596,7 +636,9 @@ document.querySelectorAll("[data-model-switch]").forEach((button) => {
         adapter_path: adapterPath,
       });
       updateModelStateLabel(data.status);
-      if (data.status?.state === "error") {
+      if (data.status?.state === "loading") {
+        pollModelStatusUntilSettled();
+      } else if (data.status?.state === "error") {
         showToast(data.status.error || "Model failed to load.");
       } else {
         showToast(`Model switched to ${data.status.model_display_name}.`, "success", 2200);
