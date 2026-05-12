@@ -3,11 +3,22 @@ from __future__ import annotations
 
 # Flask is the current web interface layer and can be extended later if needed.
 
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Flask,
+    Response,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    stream_with_context,
+    url_for,
+)
 
 from src.config import AppConfig, GENERATION_PRESETS
 from src.core.chat_manager import ChatManager, ChatNotFoundError, ChatTitleError
@@ -113,6 +124,67 @@ def create_app(
                 "assistant_message": _message_to_response(chat.messages[-1]),
                 "message_count": len(chat.messages),
             }
+        )
+
+    @app.post("/chat/<chat_id>/stream")
+    def stream_message_json(chat_id: str):
+        data = _request_json_object()
+        content = str(data.get("message", "")).strip()
+        if not content:
+            return jsonify({"ok": False, "error": "Message cannot be empty."}), 400
+        if not llm_runtime.begin_generation():
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "Model is busy. Wait until the current operation finishes.",
+                }
+            ), 409
+
+        result = manager.send_message_stream(chat_id, content)
+        if result is None:
+            llm_runtime.end_generation()
+            return jsonify({"ok": False, "error": "Chat was not found."}), 404
+
+        chat, chunks = result
+
+        def events():
+            try:
+                yield _stream_event(
+                    {
+                        "type": "user",
+                        "message": _message_to_response(chat.messages[-1]),
+                    }
+                )
+                for chunk in chunks:
+                    yield _stream_event({"type": "chunk", "content": chunk})
+
+                updated_chat = manager.get_chat(chat_id)
+                if updated_chat is None or len(updated_chat.messages) < 2:
+                    yield _stream_event(
+                        {
+                            "type": "error",
+                            "error": "Unable to create response.",
+                        }
+                    )
+                    return
+
+                yield _stream_event(
+                    {
+                        "type": "done",
+                        "assistant_message": _message_to_response(
+                            updated_chat.messages[-1]
+                        ),
+                        "message_count": len(updated_chat.messages),
+                    }
+                )
+            except Exception as error:
+                yield _stream_event({"type": "error", "error": str(error)})
+            finally:
+                llm_runtime.end_generation()
+
+        return Response(
+            stream_with_context(events()),
+            mimetype="application/x-ndjson; charset=utf-8",
         )
 
     @app.post("/chat/<chat_id>/rename")
@@ -278,6 +350,10 @@ def _request_json_object() -> dict[str, object]:
     if not isinstance(data, dict):
         return {}
     return cast(dict[str, object], data)
+
+
+def _stream_event(payload: dict[str, object]) -> str:
+    return f"{json.dumps(payload, ensure_ascii=False)}\n"
 
 
 def _message_to_response(message: Message) -> dict[str, str]:

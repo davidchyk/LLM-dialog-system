@@ -197,6 +197,35 @@ def test_send_message_passes_dict_history_to_llm(tmp_path):
     ]
 
 
+def test_send_message_stream_yields_chunks_and_saves_final_response(tmp_path):
+    class StreamingLLMService(BaseLLMService):
+        def generate_response(self, user_message, history=None):
+            return "unused"
+
+        def generate_response_stream(self, user_message, history=None):
+            del user_message, history
+            yield "Hello"
+            yield " streamed"
+
+    manager = ChatManager(
+        storage=InMemoryStorage(),
+        llm_service=StreamingLLMService(),
+    )
+    chat = manager.create_chat("Streaming")
+
+    result = manager.send_message_stream(chat.id, "Hi")
+
+    assert result is not None
+    chat_after_user_message, chunks = result
+    assert chat_after_user_message.messages[-1].content == "Hi"
+    assert list(chunks) == ["Hello", " streamed"]
+
+    updated = manager.get_chat(chat.id)
+    assert updated is not None
+    assert [message.role for message in updated.messages] == ["user", "assistant"]
+    assert updated.messages[-1].content == "Hello streamed"
+
+
 def test_search_messages_returns_matching_messages(tmp_path):
     manager = make_manager(tmp_path)
     first = manager.create_chat("First")

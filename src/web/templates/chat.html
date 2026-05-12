@@ -159,7 +159,7 @@
           {% endif %}
         </div>
 
-        <form class="message-form" action="{{ url_for('send_message', chat_id=chat.id) }}" data-json-action="{{ url_for('send_message_json', chat_id=chat.id) }}" method="post">
+        <form class="message-form" action="{{ url_for('send_message', chat_id=chat.id) }}" data-json-action="{{ url_for('send_message_json', chat_id=chat.id) }}" data-stream-action="{{ url_for('stream_message_json', chat_id=chat.id) }}" method="post">
           <div class="input-shell">
             <textarea name="message" rows="1" placeholder="What's on your mind?"></textarea>
             <button type="submit" aria-label="Send message">Send</button>

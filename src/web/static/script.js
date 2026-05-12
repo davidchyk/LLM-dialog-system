@@ -364,6 +364,17 @@ function resolvePendingAssistantMessage(pendingElement, message) {
   typesetMath(target);
 }
 
+function updatePendingAssistantStream(pendingElement, text) {
+  if (!pendingElement) {
+    return;
+  }
+
+  const content = pendingElement.querySelector(".message-content");
+  if (content) {
+    content.textContent = text;
+  }
+}
+
 function markPendingAssistantError(pendingElement) {
   if (!pendingElement) {
     return;
@@ -399,6 +410,57 @@ async function postJson(url, payload = {}) {
   }
 
   return data;
+}
+
+async function streamJsonLines(url, payload, onEvent) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/x-ndjson, application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({
+      error: "Request failed.",
+    }));
+    throw new Error(data.error || "Request failed.");
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Streaming response is not supported by this browser.");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      onEvent(JSON.parse(trimmed));
+    }
+  }
+
+  buffer += decoder.decode();
+  const trimmed = buffer.trim();
+  if (trimmed) {
+    onEvent(JSON.parse(trimmed));
+  }
 }
 
 async function getJson(url) {
@@ -538,7 +600,8 @@ forms.forEach((form) => {
     }
 
     const jsonAction = form.dataset.jsonAction;
-    if (!jsonAction) {
+    const streamAction = form.dataset.streamAction;
+    if (!jsonAction && !streamAction) {
       return;
     }
 
@@ -572,10 +635,36 @@ forms.forEach((form) => {
     scheduleScrollToBottom();
 
     try {
-      const data = await postJson(jsonAction, { message });
-      resolvePendingAssistantMessage(pendingAssistantMessage, data.assistant_message);
-      if (messageCount && typeof data.message_count === "number") {
-        messageCount.textContent = data.message_count;
+      if (streamAction) {
+        let streamedText = "";
+        let finalEvent = null;
+        await streamJsonLines(streamAction, { message }, (eventData) => {
+          if (eventData.type === "chunk") {
+            streamedText += eventData.content || "";
+            updatePendingAssistantStream(pendingAssistantMessage, streamedText);
+            scheduleScrollToBottom();
+          } else if (eventData.type === "done") {
+            finalEvent = eventData;
+          } else if (eventData.type === "error") {
+            throw new Error(eventData.error || "Could not generate a response.");
+          }
+        });
+        if (!finalEvent?.assistant_message) {
+          throw new Error("Streaming response ended unexpectedly.");
+        }
+        resolvePendingAssistantMessage(
+          pendingAssistantMessage,
+          finalEvent.assistant_message,
+        );
+        if (messageCount && typeof finalEvent.message_count === "number") {
+          messageCount.textContent = finalEvent.message_count;
+        }
+      } else {
+        const data = await postJson(jsonAction, { message });
+        resolvePendingAssistantMessage(pendingAssistantMessage, data.assistant_message);
+        if (messageCount && typeof data.message_count === "number") {
+          messageCount.textContent = data.message_count;
+        }
       }
       scheduleScrollToBottom();
     } catch (error) {

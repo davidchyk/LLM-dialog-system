@@ -1,7 +1,9 @@
 from __future__ import annotations
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportAttributeAccessIssue=false, reportArgumentType=false
 
+from collections.abc import Iterator
 from pathlib import Path
+from threading import Thread
 from typing import Any
 
 from src.config import AppConfig
@@ -97,6 +99,59 @@ class TransformersLLMService(BaseLLMService):
         new_tokens = output_ids[0][input_length:]
         response = self.tokenizer.decode(new_tokens, skip_special_tokens=True)
         return self._clean_response(response)
+
+    def generate_response_stream(
+        self,
+        user_message: str,
+        history: list[dict[str, Any]] | None = None,
+    ) -> Iterator[str]:
+        if self._is_identity_question(user_message):
+            yield self._identity_response()
+            return
+
+        try:
+            from transformers import TextIteratorStreamer
+        except ImportError:
+            yield self.generate_response(user_message, history)
+            return
+
+        prompt = self._build_prompt(user_message, history)
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+        streamer = TextIteratorStreamer(
+            self.tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True,
+        )
+
+        generation_kwargs: dict[str, Any] = {
+            **inputs,
+            "streamer": streamer,
+            "max_new_tokens": self.max_new_tokens,
+            "do_sample": self.do_sample,
+            "pad_token_id": self.tokenizer.eos_token_id,
+        }
+        if self.repetition_penalty and self.repetition_penalty != 1.0:
+            generation_kwargs["repetition_penalty"] = self.repetition_penalty
+        if self.no_repeat_ngram_size > 0:
+            generation_kwargs["no_repeat_ngram_size"] = self.no_repeat_ngram_size
+        if self.do_sample:
+            generation_kwargs["temperature"] = self.temperature
+            generation_kwargs["top_p"] = self.top_p
+
+        def generate() -> None:
+            with self.torch.no_grad():
+                self.model.generate(**generation_kwargs)
+
+        thread = Thread(target=generate, daemon=True)
+        thread.start()
+
+        for chunk in streamer:
+            if chunk:
+                yield chunk
+        thread.join()
+
+    def finalize_streamed_response(self, text: str) -> str:
+        return self._clean_response(text)
 
     def _build_prompt(
         self,

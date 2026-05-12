@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from uuid import uuid4
 
 from src.core.models import Chat, Role, utc_now_iso
@@ -86,6 +87,41 @@ class ChatManager:
             return None
 
         return updated_chat, assistant_response
+
+    def send_message_stream(
+        self,
+        chat_id: str,
+        content: str,
+    ) -> tuple[Chat, Iterator[str]] | None:
+
+        content = content.strip()
+
+        if not content:
+            return None
+
+        chat = self.storage.add_message(chat_id, "user", content)
+
+        if chat is None:
+            return None
+
+        history = [message.to_dict() for message in chat.messages]
+
+        def stream_chunks() -> Iterator[str]:
+            response_parts: list[str] = []
+            for chunk in self.llm_service.generate_response_stream(content, history):
+                if not chunk:
+                    continue
+                response_parts.append(chunk)
+                yield chunk
+
+            assistant_response = self.llm_service.finalize_streamed_response(
+                "".join(response_parts)
+            )
+            if not assistant_response:
+                assistant_response = "I could not generate a useful response."
+            self.storage.add_message(chat_id, "assistant", assistant_response)
+
+        return chat, stream_chunks()
 
     def add_message(self, chat_id: str, role: str, content: str) -> Chat | None:
         if role not in {"user", "assistant"}:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 # pyright: reportUnknownParameterType=false, reportMissingParameterType=false, reportUnknownArgumentType=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportOptionalMemberAccess=false
 
+import json
 from threading import Event, Thread
 
 from src.core.chat_manager import ChatManager
@@ -20,6 +21,13 @@ class BlockingLLMService(FakeLLMService):
         self.started.set()
         self.release.wait(timeout=5)
         return super().generate_response(user_message, history)
+
+
+class StreamingLLMService(FakeLLMService):
+    def generate_response_stream(self, user_message, history=None):
+        del user_message, history
+        yield "Hello"
+        yield " streamed"
 
 
 def make_client(tmp_path, model_config_path=None):
@@ -127,6 +135,32 @@ def test_send_endpoint_adds_user_and_assistant_messages(tmp_path):
     assert payload["assistant_message"]["role"] == "assistant"
     assert manager.get_chat(chat.id) is not None
     assert len(manager.get_chat(chat.id).messages) == 2
+
+
+def test_stream_endpoint_streams_chunks_and_saves_assistant_message(tmp_path):
+    manager = ChatManager(
+        storage=InMemoryStorage(),
+        llm_service=StreamingLLMService(),
+    )
+    app = create_app(manager, models_dir=tmp_path / "models")
+    app.config.update(TESTING=True)
+    client = app.test_client()
+    chat = manager.create_chat("Streaming")
+
+    response = client.post(f"/chat/{chat.id}/stream", json={"message": "Hi"})
+
+    lines = [
+        json.loads(line)
+        for line in response.get_data(as_text=True).splitlines()
+        if line.strip()
+    ]
+    assert response.status_code == 200
+    assert response.mimetype == "application/x-ndjson"
+    assert [line["type"] for line in lines] == ["user", "chunk", "chunk", "done"]
+    assert lines[1]["content"] == "Hello"
+    assert lines[2]["content"] == " streamed"
+    assert lines[-1]["assistant_message"]["content"] == "Hello streamed"
+    assert lines[-1]["message_count"] == 2
 
 
 def test_rename_endpoint_rejects_duplicate_title(tmp_path):

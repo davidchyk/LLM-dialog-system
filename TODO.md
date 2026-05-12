@@ -51,7 +51,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a lo
 - [x] Add model loading/unloading mechanism
 - [x] Add generation preset selector endpoint
 - [x] Add model health/status checks
-- [ ] Add streaming generation
+- [x] Add streaming generation
 - [x] Add model loading indicator in UI
 - [x] Add graceful error page/toast if model loading fails
 - [x] Add syntax highlighting for rendered code blocks
