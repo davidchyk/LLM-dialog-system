@@ -259,6 +259,25 @@ def test_message_search_endpoint_returns_matching_messages(tmp_path):
     assert payload["results"][0]["preview"] == "The database uses PostgreSQL"
 
 
+def test_message_search_preview_is_centered_on_match(tmp_path):
+    client, manager = make_client(tmp_path)
+    chat = manager.create_chat("Searchable")
+    manager.add_message(
+        chat.id,
+        "assistant",
+        "Intro text that should be clipped before the important PostgreSQL section "
+        "and then a long ending that should not dominate the preview.",
+    )
+
+    response = client.get("/api/messages/search?query=postgres")
+
+    payload = response.get_json()
+    preview = payload["results"][0]["preview"]
+    assert response.status_code == 200
+    assert "PostgreSQL" in preview
+    assert preview.startswith("...") or preview.endswith("...")
+
+
 def test_message_search_endpoint_ignores_blank_query(tmp_path):
     client, manager = make_client(tmp_path)
     chat = manager.create_chat("Searchable")
@@ -340,6 +359,77 @@ def test_model_switch_endpoint_reports_loading_and_rejects_parallel_switch(
     assert second_response.get_json()["status"]["state"] == "loading"
 
     release.set()
+
+
+def test_model_switch_loading_status_ignores_previous_load_error(tmp_path, monkeypatch):
+    started = Event()
+    release = Event()
+    manager = ChatManager(
+        storage=InMemoryStorage(),
+        llm_service=UnavailableLLMService(
+            backend="transformers",
+            model_name_or_path="models/qwen2.5-1.5b-instruct",
+            adapter_path="adapters/qwen2.5-1.5b-structeval-lora",
+            load_error="Failed to load PEFT adapter.",
+        ),
+    )
+    app = create_app(manager, models_dir=tmp_path / "models")
+    app.config.update(TESTING=True)
+    client = app.test_client()
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        started.set()
+        release.wait(timeout=5)
+        return FakeLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    response = client.post(
+        "/api/model/switch",
+        json={
+            "backend": "transformers",
+            "model_name": "models/qwen2.5-1.5b-instruct",
+            "adapter_path": "",
+        },
+    )
+    started.wait(timeout=5)
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["status"]["state"] == "loading"
+    assert payload["status"]["error"] == ""
+
+    release.set()
+
+
+def test_model_switch_can_clear_previous_adapter_path(tmp_path, monkeypatch):
+    from src.config import AppConfig
+
+    captured = {}
+    client, _manager = make_client(tmp_path)
+    monkeypatch.setattr(AppConfig, "ADAPTER_PATH", "adapters/old-lora")
+
+    def fake_create(backend, model_name_or_path=None, generation_preset=None, adapter_path=None):
+        captured["adapter_path"] = adapter_path
+        return FakeLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    response = client.post(
+        "/api/model/switch",
+        json={
+            "backend": "transformers",
+            "model_name": "models/qwen2.5-0.5b-instruct",
+            "adapter_path": "",
+        },
+    )
+
+    assert response.status_code == 200
+    for _attempt in range(100):
+        if captured:
+            break
+        Event().wait(timeout=0.01)
+    assert captured["adapter_path"] == ""
 
 
 def test_send_endpoint_rejects_message_while_model_is_loading(tmp_path, monkeypatch):

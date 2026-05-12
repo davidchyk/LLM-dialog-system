@@ -1,12 +1,12 @@
 {
   "models": [
     {
-      "name": "Qwen2.5 0.5B Instruct",
-      "path": "models/qwen2.5-0.5b-instruct",
+      "name": "Qwen2.5 1.5B Instruct",
+      "path": "models/qwen2.5-1.5b-instruct",
       "backend": "transformers",
       "generation_preset": "balanced",
       "adapter_path": "",
-      "description": "Recommended small local instruction model."
+      "description": "Recommended local instruction model."
     },
     {
       "name": "DistilGPT2",
@@ -17,12 +17,12 @@
       "description": "Tiny baseline model for quick local checks."
     },
     {
-      "name": "Qwen2.5 0.5B with LoRA adapter",
-      "path": "models/qwen2.5-0.5b-instruct",
+      "name": "Qwen2.5 1.5B with Structured Output LoRA",
+      "path": "models/qwen2.5-1.5b-instruct",
       "backend": "transformers",
-      "generation_preset": "balanced",
-      "adapter_path": "adapters/qwen-course-lora",
-      "description": "Example PEFT adapter layered on top of the base Qwen model."
+      "generation_preset": "precise",
+      "adapter_path": "adapters/qwen2.5-1.5b-structeval-lora",
+      "description": "Example PEFT adapter layered on top of Qwen2.5-1.5B-Instruct."
     }
   ]
 }

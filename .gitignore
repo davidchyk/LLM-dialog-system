@@ -20,8 +20,9 @@ tests/.runtime-web/
 # Legacy local JSON chat files:
 data/chats/*.json
 
-# LLM models
+# LLM models and adapters:
 models/
+adapters/
 
 # Local environment files:
 .env

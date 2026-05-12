@@ -264,7 +264,7 @@ def create_app(
             backend,
             model_name_or_path=model_name,
             generation_preset=preset,
-            adapter_path=adapter_path or None,
+            adapter_path=adapter_path,
         )
         if not started:
             return jsonify(
@@ -313,7 +313,7 @@ def create_app(
                         "chat_title": result.chat_title,
                         "role": result.role,
                         "content": result.content,
-                        "preview": _message_preview(result.content),
+                        "preview": _message_preview(result.content, query),
                         "timestamp": result.timestamp,
                         "url": url_for("chat_page", chat_id=result.chat_id),
                     }
@@ -392,10 +392,27 @@ def _parse_search_limit(value: str) -> int:
     return max(1, min(limit, 25))
 
 
-def _message_preview(content: str, max_length: int = 120) -> str:
+def _message_preview(content: str, query: str = "", max_length: int = 120) -> str:
     normalized = " ".join(content.split())
     if len(normalized) <= max_length:
         return normalized
+
+    normalized_query = query.strip().casefold()
+    match_index = (
+        normalized.casefold().find(normalized_query) if normalized_query else -1
+    )
+    if match_index >= 0:
+        context = max(0, (max_length - len(normalized_query)) // 2)
+        start = max(0, match_index - context)
+        end = min(len(normalized), start + max_length)
+        start = max(0, end - max_length)
+        preview = normalized[start:end].strip()
+        if start > 0:
+            preview = "..." + preview
+        if end < len(normalized):
+            preview = preview.rstrip() + "..."
+        return preview
+
     return normalized[: max_length - 1].rstrip() + "..."
 
 
@@ -405,10 +422,13 @@ def _get_ui_context(
 ) -> dict[str, object]:
     backend = AppConfig.LLM_BACKEND.strip().casefold() or "transformers"
     model_name = AppConfig.MODEL_NAME
+    adapter_path = AppConfig.ADAPTER_PATH
     return {
         "llm_backend": backend,
         "model_name": model_name,
         "model_display_name": _model_display_name(model_name),
+        "adapter_path": adapter_path,
+        "adapter_display_name": _model_display_name(adapter_path) if adapter_path else "",
         "generation_preset": AppConfig.GENERATION_PRESET,
         "generation_presets": list(GENERATION_PRESETS),
         "local_models": list_local_models(models_dir),
@@ -490,10 +510,15 @@ def _model_status(
     if runtime_state in {"loading", "not_loaded"}:
         is_ready = False
     state = runtime_state or ("error" if load_error else ("ready" if is_ready else "not_loaded"))
-    if runtime_state == "not_loaded":
+    if runtime_state == "loading":
+        state = "loading"
+    elif runtime_state == "not_loaded":
         state = "not_loaded"
     elif runtime_state == "error" or load_error:
         state = "error"
+    error = "" if runtime_state == "loading" else load_error or (
+        llm_runtime.error if llm_runtime is not None else ""
+    )
 
     return {
         "backend": backend,
@@ -506,7 +531,7 @@ def _model_status(
         "ready": is_ready,
         "state": state,
         "operation": llm_runtime.operation if llm_runtime is not None else "",
-        "error": load_error or (llm_runtime.error if llm_runtime is not None else ""),
+        "error": error,
         "local_models": [
             {
                 "name": model.name,

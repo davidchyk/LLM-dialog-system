@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a local Transformers LLM backend. Transformers inference is available for local models, including `distilgpt2`, `Qwen/Qwen2.5-0.5B-Instruct`, and the recommended `Qwen/Qwen2.5-1.5B-Instruct` path at `models/qwen2.5-1.5b-instruct`. Course project documentation has the first two chapters, UML diagrams, and generated diagram images.
+The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a local Transformers LLM backend. Transformers inference is available for local models, including `distilgpt2`, `Qwen/Qwen2.5-0.5B-Instruct`, and the recommended `Qwen/Qwen2.5-1.5B-Instruct` path at `models/qwen2.5-1.5b-instruct`. Runtime model switching, streaming generation, and generation stop are implemented. Qwen2.5-1.5B-Instruct was tested and works technically, but Ukrainian answer quality and strict JSON formatting are weak. Course project documentation has the first two chapters, UML diagrams, and generated diagram images.
 
 ## Completed
 
@@ -26,7 +26,11 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a lo
 - [x] Add and improve automated tests
 - [x] Improve error handling
 - [x] Update README documentation
-- [ ] Create GitHub Issues for known bugs and future tasks
+
+### Known Bugs
+
+- [ ] Fix MathJax/LaTeX rendering: assistant formulas are still displayed as raw TeX in chat messages
+- [ ] Investigate whether local small models should be used mainly in English due to weak Ukrainian quality
 
 ### LLM Integration
 
@@ -39,19 +43,20 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a lo
 - [x] Add generation settings
 - [x] Add chat template support for instruction models
 - [x] Add recommended local instruction model download script
-- [x] Add Math/LaTeX rendering in web UI
+- [x] Add Math/LaTeX rendering in web UI foundation
 - [x] Add UI backend/model indicator
 - [x] Add generation presets
 - [x] Add local model discovery from `models/` directory
-- [ ] Test better small instruction-tuned models
-- [ ] Test Qwen2.5-1.5B-Instruct
-- [ ] Compare small instruction models
+- [x] Test better small instruction-tuned models
+- [x] Test Qwen2.5-1.5B-Instruct
+- [x] Compare small instruction models
 - [x] Add model-specific chat template regression tests
 - [x] Add runtime model switching without restarting app
 - [x] Add model loading/unloading mechanism
 - [x] Add generation preset selector endpoint
 - [x] Add model health/status checks
 - [x] Add streaming generation
+- [x] Add stop button for active streaming generation
 - [x] Add model loading indicator in UI
 - [x] Add graceful error page/toast if model loading fails
 - [x] Add syntax highlighting for rendered code blocks
@@ -65,9 +70,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a lo
 - [x] Add `PostgresStorage`
 - [x] Add storage backend selection
 - [x] Remove legacy JSON storage backend
-- [ ] Add runtime storage management UI
 - [x] Add database migrations with Alembic
-- [ ] Add user accounts/auth if ever needed
 - [x] Add message search
 - [x] Add conversation export
 

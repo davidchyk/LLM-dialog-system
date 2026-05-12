@@ -9,6 +9,14 @@
       "description": "Stronger local instruction model for regular chat and coding checks."
     },
     {
+      "name": "Qwen2.5 1.5B Structured Output LoRA",
+      "path": "models/qwen2.5-1.5b-instruct",
+      "backend": "transformers",
+      "generation_preset": "precise",
+      "adapter_path": "adapters/qwen2.5-1.5b-structeval-lora",
+      "description": "Qwen2.5-1.5B-Instruct with a structured output LoRA adapter for JSON-style responses."
+    },
+    {
       "name": "Qwen2.5 0.5B Instruct",
       "path": "models/qwen2.5-0.5b-instruct",
       "backend": "transformers",

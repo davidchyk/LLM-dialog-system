@@ -238,22 +238,52 @@ button:disabled {
 }
 
 .message-search-results {
-  border-top: 1px solid var(--border);
+  background: #101010;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   display: grid;
-  gap: 5px;
-  margin-top: 8px;
-  padding-top: 10px;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 36vh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 10px;
 }
 
-.message-search-results > p {
+.message-search-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.message-search-heading > p {
   color: var(--muted-2);
   font-size: 12px;
-  margin: 0 0 2px;
+  margin: 0;
+}
+
+.message-search-heading > span {
+  align-items: center;
+  background: #1f1f1f;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  height: 20px;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 6px;
 }
 
 .message-search-results > div {
   display: grid;
   gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .message-search-result {
@@ -293,6 +323,14 @@ button:disabled {
 
 .message-search-preview {
   font-size: 12px;
+}
+
+.message-search-preview mark {
+  background: rgba(255, 214, 102, 0.22);
+  border: 1px solid rgba(255, 214, 102, 0.35);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 0 2px;
 }
 
 .llm-status {
@@ -619,8 +657,11 @@ button:disabled {
   flex: 1 1 auto;
   gap: 14px;
   justify-self: center;
+  max-width: 100%;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px 0 14px;
   scroll-behavior: smooth;
   width: min(860px, 100%);
@@ -630,6 +671,8 @@ button:disabled {
   background: var(--panel);
   border-radius: 18px;
   max-width: min(620px, 70%);
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 12px 14px;
 }
 
@@ -654,6 +697,7 @@ button:disabled {
   background: #0b0b0b;
   border: 1px solid var(--border);
   border-radius: 10px;
+  max-width: 100%;
   margin: 10px 0;
   overflow-x: auto;
   padding: 38px 12px 12px;
@@ -680,8 +724,10 @@ button:disabled {
 }
 
 .message.assistant code {
+  display: block;
   font-family: "Consolas", "Cascadia Code", "Courier New", monospace;
   font-size: 13px;
+  min-width: max-content;
 }
 
 .code-token.keyword {
@@ -704,6 +750,8 @@ button:disabled {
   background: #0b0b0b;
   border: 1px solid var(--border);
   border-radius: 5px;
+  display: inline;
+  min-width: 0;
   padding: 1px 5px;
 }
 
@@ -739,6 +787,9 @@ button:disabled {
 
 .message-content {
   color: var(--text);
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: break-word;
 }

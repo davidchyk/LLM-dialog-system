@@ -14,6 +14,7 @@ const modelName = document.querySelector("[data-model-name]");
 const adapterName = document.querySelector("[data-adapter-name]");
 const messageSearchResults = document.querySelector("[data-message-search-results]");
 const messageSearchList = document.querySelector("[data-message-search-list]");
+const messageSearchCount = document.querySelector("[data-message-search-count]");
 const stopGenerationButton = document.querySelector("[data-generation-stop]");
 let isGenerating = false;
 let searchTimer = null;
@@ -56,6 +57,39 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function createHighlightedText(text, query) {
+  const fragment = document.createDocumentFragment();
+  const source = String(text ?? "");
+  const needle = String(query ?? "").trim();
+  if (!needle) {
+    fragment.append(document.createTextNode(source));
+    return fragment;
+  }
+
+  const sourceLower = source.toLowerCase();
+  const needleLower = needle.toLowerCase();
+  let cursor = 0;
+  let matchIndex = sourceLower.indexOf(needleLower);
+
+  while (matchIndex >= 0) {
+    if (matchIndex > cursor) {
+      fragment.append(document.createTextNode(source.slice(cursor, matchIndex)));
+    }
+
+    const mark = document.createElement("mark");
+    mark.textContent = source.slice(matchIndex, matchIndex + needle.length);
+    fragment.append(mark);
+
+    cursor = matchIndex + needle.length;
+    matchIndex = sourceLower.indexOf(needleLower, cursor);
+  }
+
+  if (cursor < source.length) {
+    fragment.append(document.createTextNode(source.slice(cursor)));
+  }
+  return fragment;
+}
+
 function highlightCode(code) {
   const tokenPattern =
     /(&quot;[^&]*(?:&(?!quot;)[^&]*)*&quot;|&#039;[^&]*(?:&(?!#039;)[^&]*)*&#039;|\/\/.*|#.*|\b(?:class|def|return|if|else|elif|for|while|try|except|finally|with|from|import|as|const|let|var|function|async|await|return|new|true|false|null|None|SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|CREATE|TABLE|JOIN|LEFT|RIGHT|INNER|ORDER|GROUP|BY|LIMIT)\b|\b\d+(?:\.\d+)?\b)/g;
@@ -95,8 +129,27 @@ function renderCodeBlock(languageClass, code) {
   );
 }
 
+function renderDisplayMath(math) {
+  const normalizedMath = math.trim();
+  return (
+    `<div class="math-display" data-math-display data-tex="${escapeHtml(normalizedMath)}">` +
+    `${normalizedMath}` +
+    `</div>`
+  );
+}
+
+function renderInlineMath(math) {
+  const normalizedMath = math.trim();
+  return (
+    `<span class="math-inline" data-math-inline data-tex="${escapeHtml(normalizedMath)}">` +
+    `${normalizedMath}` +
+    `</span>`
+  );
+}
+
 function renderAssistantMarkdown(text) {
   const codeBlocks = [];
+  const mathBlocks = [];
   let escaped = escapeHtml(text);
 
   escaped = escaped.replace(/```([\w-]*)\n?([\s\S]*?)```/g, (_match, language, code) => {
@@ -106,6 +159,18 @@ function renderAssistantMarkdown(text) {
     return `@@CODE_BLOCK_${index}@@`;
   });
 
+  escaped = escaped.replace(/\\\[([\s\S]*?)\\\]/g, (_match, math) => {
+    const index = mathBlocks.length;
+    mathBlocks.push(renderDisplayMath(math));
+    return `@@MATH_BLOCK_${index}@@`;
+  });
+
+  escaped = escaped.replace(/\\\(([\s\S]*?)\\\)/g, (_match, math) => {
+    const index = mathBlocks.length;
+    mathBlocks.push(renderInlineMath(math));
+    return `@@MATH_BLOCK_${index}@@`;
+  });
+
   escaped = escaped.replace(/`([^`\n]+)`/g, "<code>$1</code>");
 
   const paragraphs = escaped
@@ -113,7 +178,7 @@ function renderAssistantMarkdown(text) {
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
     .map((paragraph) => {
-      if (/^@@CODE_BLOCK_\d+@@$/.test(paragraph)) {
+      if (/^@@(?:CODE|MATH)_BLOCK_\d+@@$/.test(paragraph)) {
         return paragraph;
       }
       return `<p>${paragraph.replace(/\n/g, "<br>")}</p>`;
@@ -122,6 +187,8 @@ function renderAssistantMarkdown(text) {
 
   return paragraphs.replace(/@@CODE_BLOCK_(\d+)@@/g, (_match, index) => {
     return codeBlocks[Number(index)] || "";
+  }).replace(/@@MATH_BLOCK_(\d+)@@/g, (_match, index) => {
+    return mathBlocks[Number(index)] || "";
   });
 }
 
@@ -162,11 +229,47 @@ document.addEventListener("click", async (event) => {
 });
 
 function typesetMath(element) {
-  if (!element || !window.MathJax || !window.MathJax.typesetPromise) {
+  if (!element) {
     return;
   }
 
-  window.MathJax.typesetPromise([element]).catch(() => {
+  const mathJax = window.MathJax;
+  if (!mathJax) {
+    window.setTimeout(() => typesetMath(element), 100);
+    return;
+  }
+
+  const runTypeset = async () => {
+    if (!mathJax.tex2svgPromise) {
+      window.setTimeout(() => typesetMath(element), 100);
+      return;
+    }
+
+    const mathNodes = element.querySelectorAll("[data-math-display], [data-math-inline]");
+    for (const node of mathNodes) {
+      if (node.dataset.mathRendered === "true") {
+        continue;
+      }
+      const tex = node.dataset.tex || node.textContent || "";
+      const isDisplay = node.hasAttribute("data-math-display");
+      try {
+        const svg = await mathJax.tex2svgPromise(tex, { display: isDisplay });
+        node.replaceChildren(...Array.from(svg.childNodes));
+        node.dataset.mathRendered = "true";
+      } catch (_error) {
+        node.textContent = tex;
+      }
+    }
+  };
+
+  if (mathJax.startup?.promise) {
+    mathJax.startup.promise.then(() => runTypeset()).catch(() => {
+      // Math rendering should never block the chat UI.
+    });
+    return;
+  }
+
+  runTypeset().catch(() => {
     // Math rendering should never block the chat UI.
   });
 }
@@ -515,12 +618,17 @@ function updateModelStateLabel(status) {
   if (generationPresetSelect && status.generation_preset) {
     generationPresetSelect.value = status.generation_preset;
   }
-  updateActiveModelButtons(status.model_name);
+  updateActiveModelButtons(status.model_name, status.adapter_path || "");
 }
 
-function updateActiveModelButtons(activeModelPath) {
+function updateActiveModelButtons(activeModelPath, activeAdapterPath = "") {
   document.querySelectorAll("[data-model-switch]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.modelPath === activeModelPath);
+    const buttonAdapterPath = button.dataset.adapterPath || "";
+    const isSameModel = button.dataset.modelPath === activeModelPath;
+    const isLocalModel = !button.hasAttribute("data-adapter-path");
+    const isExactVariant =
+      isSameModel && (isLocalModel || buttonAdapterPath === activeAdapterPath);
+    button.classList.toggle("active", isExactVariant);
   });
 }
 
@@ -816,15 +924,22 @@ function updateSidebarSearchState() {
   }
 }
 
-function renderMessageSearchResults(results) {
+function renderMessageSearchResults(results, query = "") {
   if (!messageSearchResults || !messageSearchList) {
     return;
   }
 
   messageSearchList.replaceChildren();
+  if (messageSearchCount) {
+    messageSearchCount.textContent = "";
+  }
   if (!results.length) {
     messageSearchResults.classList.add("hidden");
     return;
+  }
+
+  if (messageSearchCount) {
+    messageSearchCount.textContent = String(results.length);
   }
 
   results.forEach((result) => {
@@ -841,7 +956,7 @@ function renderMessageSearchResults(results) {
 
     const preview = document.createElement("span");
     preview.className = "message-search-preview";
-    preview.textContent = result.preview;
+    preview.append(createHighlightedText(result.preview, query));
 
     link.append(title, meta, preview);
     messageSearchList.append(link);
@@ -865,7 +980,7 @@ function scheduleMessageSearch() {
     try {
       const params = new URLSearchParams({ query, limit: "8" });
       const data = await getJson(`/api/messages/search?${params.toString()}`);
-      renderMessageSearchResults(data.results || []);
+      renderMessageSearchResults(data.results || [], query);
     } catch (error) {
       renderMessageSearchResults([]);
       showToast(error.message);
