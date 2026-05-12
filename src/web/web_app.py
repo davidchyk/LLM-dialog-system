@@ -140,7 +140,8 @@ def create_app(
                 }
             ), 409
 
-        result = manager.send_message_stream(chat_id, content)
+        stop_event = llm_runtime.generation_stop_event()
+        result = manager.send_message_stream(chat_id, content, stop_event=stop_event)
         if result is None:
             llm_runtime.end_generation()
             return jsonify({"ok": False, "error": "Chat was not found."}), 404
@@ -186,6 +187,17 @@ def create_app(
             stream_with_context(events()),
             mimetype="application/x-ndjson; charset=utf-8",
         )
+
+    @app.post("/api/generation/stop")
+    def stop_generation():
+        stopped = llm_runtime.request_generation_stop()
+        return jsonify(
+            {
+                "ok": stopped,
+                "stopped": stopped,
+                "status": _model_status(manager, llm_runtime, models_dir),
+            }
+        ), 200 if stopped else 409
 
     @app.post("/chat/<chat_id>/rename")
     def rename_chat(chat_id: str):

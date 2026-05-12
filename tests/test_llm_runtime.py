@@ -196,6 +196,25 @@ def test_runtime_switch_async_rejects_switch_while_generating():
     assert runtime.operation == ""
 
 
+def test_runtime_generation_stop_signal_is_available_while_generating():
+    manager = make_manager()
+    runtime = LLMRuntime(manager)
+
+    assert runtime.request_generation_stop() is False
+    assert runtime.begin_generation() is True
+
+    stop_event = runtime.generation_stop_event()
+    assert stop_event is not None
+    assert stop_event.is_set() is False
+    assert runtime.request_generation_stop() is True
+    assert stop_event.is_set() is True
+
+    runtime.end_generation()
+
+    assert runtime.generation_stop_event() is None
+    assert runtime.request_generation_stop() is False
+
+
 def test_runtime_initializes_error_state_from_unavailable_service():
     manager = make_manager(
         UnavailableLLMService(

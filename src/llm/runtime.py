@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from threading import RLock, Thread
+from threading import Event, RLock, Thread
 
 import src.config as config
 from src.core.chat_manager import ChatManager
@@ -18,6 +18,7 @@ class LLMRuntime:
         self.error = load_error
         self.operation = ""
         self._active_generations = 0
+        self._generation_stop_event: Event | None = None
 
     @property
     def service(self) -> BaseLLMService:
@@ -152,6 +153,7 @@ class LLMRuntime:
             if self.state != "ready" or self._active_generations > 0:
                 return False
             self._active_generations += 1
+            self._generation_stop_event = Event()
             self.operation = "generate"
             return True
 
@@ -160,6 +162,18 @@ class LLMRuntime:
             self._active_generations = max(0, self._active_generations - 1)
             if self._active_generations == 0 and self.operation == "generate":
                 self.operation = ""
+                self._generation_stop_event = None
+
+    def generation_stop_event(self) -> Event | None:
+        with self._lock:
+            return self._generation_stop_event
+
+    def request_generation_stop(self) -> bool:
+        with self._lock:
+            if self._active_generations == 0 or self._generation_stop_event is None:
+                return False
+            self._generation_stop_event.set()
+            return True
 
     def _unload_current_locked(self) -> None:
         unload = getattr(self.manager.llm_service, "unload", None)

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from threading import Thread
+from threading import Event, Thread
 from typing import Any
 
 from src.config import AppConfig
@@ -104,13 +104,18 @@ class TransformersLLMService(BaseLLMService):
         self,
         user_message: str,
         history: list[dict[str, Any]] | None = None,
+        stop_event: Event | None = None,
     ) -> Iterator[str]:
         if self._is_identity_question(user_message):
             yield self._identity_response()
             return
 
         try:
-            from transformers import TextIteratorStreamer
+            from transformers import (
+                StoppingCriteria,
+                StoppingCriteriaList,
+                TextIteratorStreamer,
+            )
         except ImportError:
             yield self.generate_response(user_message, history)
             return
@@ -137,6 +142,15 @@ class TransformersLLMService(BaseLLMService):
         if self.do_sample:
             generation_kwargs["temperature"] = self.temperature
             generation_kwargs["top_p"] = self.top_p
+        if stop_event is not None:
+            class StopOnEvent(StoppingCriteria):
+                def __call__(self, input_ids, scores, **kwargs) -> bool:
+                    del input_ids, scores, kwargs
+                    return stop_event.is_set()
+
+            generation_kwargs["stopping_criteria"] = StoppingCriteriaList(
+                [StopOnEvent()]
+            )
 
         def generate() -> None:
             with self.torch.no_grad():

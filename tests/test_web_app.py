@@ -24,10 +24,18 @@ class BlockingLLMService(FakeLLMService):
 
 
 class StreamingLLMService(FakeLLMService):
-    def generate_response_stream(self, user_message, history=None):
+    def generate_response_stream(self, user_message, history=None, stop_event=None):
         del user_message, history
         yield "Hello"
         yield " streamed"
+
+
+class StoppableStreamingLLMService(FakeLLMService):
+    def generate_response_stream(self, user_message, history=None, stop_event=None):
+        del user_message, history
+        if stop_event is not None and stop_event.is_set():
+            return
+        yield "Should not appear"
 
 
 def make_client(tmp_path, model_config_path=None):
@@ -161,6 +169,38 @@ def test_stream_endpoint_streams_chunks_and_saves_assistant_message(tmp_path):
     assert lines[2]["content"] == " streamed"
     assert lines[-1]["assistant_message"]["content"] == "Hello streamed"
     assert lines[-1]["message_count"] == 2
+
+
+def test_stop_generation_endpoint_stops_current_stream(tmp_path):
+    manager = ChatManager(
+        storage=InMemoryStorage(),
+        llm_service=StoppableStreamingLLMService(),
+    )
+    app = create_app(manager, models_dir=tmp_path / "models")
+    app.config.update(TESTING=True)
+    stream_client = app.test_client()
+    stop_client = app.test_client()
+    chat = manager.create_chat("Streaming")
+
+    response = stream_client.post(
+        f"/chat/{chat.id}/stream",
+        json={"message": "Hi"},
+        buffered=False,
+    )
+    first_line = next(response.response)
+
+    stop_response = stop_client.post("/api/generation/stop")
+    remaining_lines = list(response.response)
+
+    lines = [
+        json.loads(line)
+        for line in [first_line, *remaining_lines]
+        if line.strip()
+    ]
+    assert stop_response.status_code == 200
+    assert stop_response.get_json()["stopped"] is True
+    assert [line["type"] for line in lines] == ["user", "done"]
+    assert lines[-1]["assistant_message"]["content"] == "Generation stopped."
 
 
 def test_rename_endpoint_rejects_duplicate_title(tmp_path):

@@ -553,6 +553,16 @@ button:disabled {
   background: #dddddd;
 }
 
+.input-shell .stop-generation-button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.input-shell .stop-generation-button:hover {
+  background: var(--panel-hover);
+}
+
 .chat-view {
   display: flex;
   flex-direction: column;

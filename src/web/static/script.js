@@ -14,10 +14,12 @@ const modelName = document.querySelector("[data-model-name]");
 const adapterName = document.querySelector("[data-adapter-name]");
 const messageSearchResults = document.querySelector("[data-message-search-results]");
 const messageSearchList = document.querySelector("[data-message-search-list]");
+const stopGenerationButton = document.querySelector("[data-generation-stop]");
 let isGenerating = false;
 let searchTimer = null;
 let currentModelStatus = null;
 let modelStatusTimer = null;
+let generationStopRequested = false;
 
 function formatLocalTime(isoTimestamp) {
   if (!isoTimestamp) {
@@ -210,6 +212,14 @@ function resetTextarea(textarea) {
 function clearEmptyTextarea(textarea) {
   textarea.value = "";
   resetTextarea(textarea);
+}
+
+function setGenerationStopVisible(isVisible) {
+  if (!stopGenerationButton) {
+    return;
+  }
+  stopGenerationButton.classList.toggle("hidden", !isVisible);
+  stopGenerationButton.disabled = !isVisible;
 }
 
 function insertTextAtSelection(input, text) {
@@ -620,8 +630,10 @@ forms.forEach((form) => {
       return;
     }
 
-    const submitButton = form.querySelector("button");
+    const submitButton = form.querySelector("button[type='submit']");
     isGenerating = true;
+    generationStopRequested = false;
+    setGenerationStopVisible(true);
     submitButton?.setAttribute("disabled", "disabled");
 
     const optimisticUserMessage = {
@@ -673,11 +685,29 @@ forms.forEach((form) => {
       scheduleScrollToBottom();
     } finally {
       isGenerating = false;
+      generationStopRequested = false;
+      setGenerationStopVisible(false);
       await refreshModelStatus({ notifyError: false });
       submitButton?.removeAttribute("disabled");
       textarea.focus();
     }
   });
+});
+
+stopGenerationButton?.addEventListener("click", async () => {
+  if (!isGenerating || generationStopRequested) {
+    return;
+  }
+
+  generationStopRequested = true;
+  stopGenerationButton.disabled = true;
+  try {
+    await postJson("/api/generation/stop");
+  } catch (error) {
+    showToast(error.message);
+    generationStopRequested = false;
+    stopGenerationButton.disabled = false;
+  }
 });
 
 if (searchInput) {

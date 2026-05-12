@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from threading import Event
 from uuid import uuid4
 
 from src.core.models import Chat, Role, utc_now_iso
@@ -92,6 +93,7 @@ class ChatManager:
         self,
         chat_id: str,
         content: str,
+        stop_event: Event | None = None,
     ) -> tuple[Chat, Iterator[str]] | None:
 
         content = content.strip()
@@ -108,7 +110,11 @@ class ChatManager:
 
         def stream_chunks() -> Iterator[str]:
             response_parts: list[str] = []
-            for chunk in self.llm_service.generate_response_stream(content, history):
+            for chunk in self.llm_service.generate_response_stream(
+                content,
+                history,
+                stop_event=stop_event,
+            ):
                 if not chunk:
                     continue
                 response_parts.append(chunk)
@@ -118,7 +124,11 @@ class ChatManager:
                 "".join(response_parts)
             )
             if not assistant_response:
-                assistant_response = "I could not generate a useful response."
+                assistant_response = (
+                    "Generation stopped."
+                    if stop_event is not None and stop_event.is_set()
+                    else "I could not generate a useful response."
+                )
             self.storage.add_message(chat_id, "assistant", assistant_response)
 
         return chat, stream_chunks()

@@ -202,8 +202,9 @@ def test_send_message_stream_yields_chunks_and_saves_final_response(tmp_path):
         def generate_response(self, user_message, history=None):
             return "unused"
 
-        def generate_response_stream(self, user_message, history=None):
+        def generate_response_stream(self, user_message, history=None, stop_event=None):
             del user_message, history
+            assert stop_event is None
             yield "Hello"
             yield " streamed"
 
