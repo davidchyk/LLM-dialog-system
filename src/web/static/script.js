@@ -147,6 +147,222 @@ function renderInlineMath(math) {
   );
 }
 
+const TEX_SYMBOLS = {
+  alpha: "α",
+  beta: "β",
+  gamma: "γ",
+  delta: "δ",
+  epsilon: "ε",
+  theta: "θ",
+  lambda: "λ",
+  mu: "μ",
+  pi: "π",
+  rho: "ρ",
+  sigma: "σ",
+  Sigma: "Σ",
+  sqrt: "√",
+  sum: "∑",
+  times: "×",
+  cdot: "·",
+  leq: "≤",
+  geq: "≥",
+  neq: "≠",
+  approx: "≈",
+  infty: "∞",
+  text: "",
+};
+
+function readTexCommand(source, index) {
+  let cursor = index + 1;
+  while (cursor < source.length && /[A-Za-z]/.test(source[cursor])) {
+    cursor += 1;
+  }
+
+  if (cursor === index + 1 && cursor < source.length) {
+    cursor += 1;
+  }
+
+  return {
+    command: source.slice(index + 1, cursor),
+    end: cursor,
+  };
+}
+
+function readTexGroup(source, index) {
+  if (source[index] !== "{") {
+    return null;
+  }
+
+  let depth = 0;
+  for (let cursor = index; cursor < source.length; cursor += 1) {
+    const character = source[cursor];
+    if (character === "{") {
+      depth += 1;
+    } else if (character === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return {
+          content: source.slice(index + 1, cursor),
+          end: cursor + 1,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+function readTexScriptValue(source, index) {
+  const group = readTexGroup(source, index);
+  if (group) {
+    return group;
+  }
+
+  if (source[index] === "\\") {
+    const command = readTexCommand(source, index);
+    return {
+      content: TEX_SYMBOLS[command.command] || command.command,
+      end: command.end,
+    };
+  }
+
+  return {
+    content: source[index] || "",
+    end: index + 1,
+  };
+}
+
+function appendTexNodeWithScripts(fragment, baseNode, source, index) {
+  let cursor = index;
+  let subscript = "";
+  let superscript = "";
+
+  while (cursor < source.length && (source[cursor] === "_" || source[cursor] === "^")) {
+    const marker = source[cursor];
+    const value = readTexScriptValue(source, cursor + 1);
+    if (marker === "_") {
+      subscript = value.content;
+    } else {
+      superscript = value.content;
+    }
+    cursor = value.end;
+  }
+
+  if (!subscript && !superscript) {
+    fragment.append(baseNode);
+    return cursor;
+  }
+
+  const wrapper = document.createElement("span");
+  wrapper.className = "math-script";
+  wrapper.append(baseNode);
+
+  const stack = document.createElement("span");
+  stack.className = "math-script-stack";
+  if (superscript) {
+    const sup = document.createElement("sup");
+    sup.append(renderTexFragment(superscript));
+    stack.append(sup);
+  }
+  if (subscript) {
+    const sub = document.createElement("sub");
+    sub.append(renderTexFragment(subscript));
+    stack.append(sub);
+  }
+
+  wrapper.append(stack);
+  fragment.append(wrapper);
+  return cursor;
+}
+
+function createTexTextNode(text) {
+  const span = document.createElement("span");
+  span.textContent = text;
+  return span;
+}
+
+function renderTexFragment(tex) {
+  const source = String(tex ?? "");
+  const fragment = document.createDocumentFragment();
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const character = source[cursor];
+
+    if (/\s/.test(character)) {
+      fragment.append(document.createTextNode(" "));
+      cursor += 1;
+      continue;
+    }
+
+    if (character === "\\") {
+      const { command, end } = readTexCommand(source, cursor);
+      if (command === "frac") {
+        const numerator = readTexGroup(source, end);
+        const denominator = numerator ? readTexGroup(source, numerator.end) : null;
+        if (numerator && denominator) {
+          const fraction = document.createElement("span");
+          fraction.className = "math-frac";
+
+          const top = document.createElement("span");
+          top.className = "math-frac-top";
+          top.append(renderTexFragment(numerator.content));
+
+          const bottom = document.createElement("span");
+          bottom.className = "math-frac-bottom";
+          bottom.append(renderTexFragment(denominator.content));
+
+          fraction.append(top, bottom);
+          cursor = appendTexNodeWithScripts(fragment, fraction, source, denominator.end);
+          continue;
+        }
+      }
+
+      if (command === "text") {
+        const group = readTexGroup(source, end);
+        if (group) {
+          cursor = appendTexNodeWithScripts(
+            fragment,
+            createTexTextNode(group.content),
+            source,
+            group.end,
+          );
+          continue;
+        }
+      }
+
+      const symbol = TEX_SYMBOLS[command] || command;
+      const node = createTexTextNode(symbol);
+      if (command === "sum" || command === "Sigma") {
+        node.className = "math-large-op";
+      }
+      cursor = appendTexNodeWithScripts(fragment, node, source, end);
+      continue;
+    }
+
+    if (character === "{" || character === "}") {
+      cursor += 1;
+      continue;
+    }
+
+    cursor = appendTexNodeWithScripts(
+      fragment,
+      createTexTextNode(character),
+      source,
+      cursor + 1,
+    );
+  }
+
+  return fragment;
+}
+
+function renderFallbackMath(node, tex) {
+  node.replaceChildren(renderTexFragment(tex));
+  node.classList.add("math-fallback");
+  node.dataset.mathRendered = "true";
+  node.title = tex;
+}
+
 function renderAssistantMarkdown(text) {
   const codeBlocks = [];
   const mathBlocks = [];
@@ -159,6 +375,21 @@ function renderAssistantMarkdown(text) {
     return `@@CODE_BLOCK_${index}@@`;
   });
 
+  escaped = escaped.replace(/\$\$([\s\S]*?)\$\$/g, (_match, math) => {
+    const index = mathBlocks.length;
+    mathBlocks.push(renderDisplayMath(math));
+    return `@@MATH_BLOCK_${index}@@`;
+  });
+
+  escaped = escaped.replace(
+    /\\begin\{(equation\*?|align\*?)\}([\s\S]*?)\\end\{\1\}/g,
+    (_match, _environment, math) => {
+      const index = mathBlocks.length;
+      mathBlocks.push(renderDisplayMath(math));
+      return `@@MATH_BLOCK_${index}@@`;
+    },
+  );
+
   escaped = escaped.replace(/\\\[([\s\S]*?)\\\]/g, (_match, math) => {
     const index = mathBlocks.length;
     mathBlocks.push(renderDisplayMath(math));
@@ -169,6 +400,12 @@ function renderAssistantMarkdown(text) {
     const index = mathBlocks.length;
     mathBlocks.push(renderInlineMath(math));
     return `@@MATH_BLOCK_${index}@@`;
+  });
+
+  escaped = escaped.replace(/(^|[^\\$])\$([^\n$]+?)\$/g, (_match, prefix, math) => {
+    const index = mathBlocks.length;
+    mathBlocks.push(renderInlineMath(math));
+    return `${prefix}@@MATH_BLOCK_${index}@@`;
   });
 
   escaped = escaped.replace(/`([^`\n]+)`/g, "<code>$1</code>");
@@ -233,18 +470,7 @@ function typesetMath(element) {
     return;
   }
 
-  const mathJax = window.MathJax;
-  if (!mathJax) {
-    window.setTimeout(() => typesetMath(element), 100);
-    return;
-  }
-
   const runTypeset = async () => {
-    if (!mathJax.tex2svgPromise) {
-      window.setTimeout(() => typesetMath(element), 100);
-      return;
-    }
-
     const mathNodes = element.querySelectorAll("[data-math-display], [data-math-inline]");
     for (const node of mathNodes) {
       if (node.dataset.mathRendered === "true") {
@@ -252,15 +478,49 @@ function typesetMath(element) {
       }
       const tex = node.dataset.tex || node.textContent || "";
       const isDisplay = node.hasAttribute("data-math-display");
+      if (window.katex?.render) {
+        try {
+          window.katex.render(tex, node, {
+            displayMode: isDisplay,
+            throwOnError: false,
+            strict: false,
+          });
+          node.dataset.mathRendered = "true";
+          continue;
+        } catch (_error) {
+          renderFallbackMath(node, tex);
+          continue;
+        }
+      }
+
+      const mathJax = window.MathJax;
+      if (!mathJax?.tex2svgPromise) {
+        renderFallbackMath(node, tex);
+        continue;
+      }
+
       try {
         const svg = await mathJax.tex2svgPromise(tex, { display: isDisplay });
         node.replaceChildren(...Array.from(svg.childNodes));
         node.dataset.mathRendered = "true";
       } catch (_error) {
-        node.textContent = tex;
+        renderFallbackMath(node, tex);
       }
     }
   };
+
+  if (window.katex?.render) {
+    runTypeset().catch(() => {
+      // Math rendering should never block the chat UI.
+    });
+    return;
+  }
+
+  const mathJax = window.MathJax;
+  if (!mathJax) {
+    window.setTimeout(() => typesetMath(element), 100);
+    return;
+  }
 
   if (mathJax.startup?.promise) {
     mathJax.startup.promise.then(() => runTypeset()).catch(() => {
@@ -323,6 +583,17 @@ function setGenerationStopVisible(isVisible) {
   }
   stopGenerationButton.classList.toggle("hidden", !isVisible);
   stopGenerationButton.disabled = !isVisible;
+}
+
+function blockDuringGeneration(event, message = "Wait until the current response finishes.") {
+  if (!isGenerating) {
+    return false;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  showToast(message);
+  return true;
 }
 
 function insertTextAtSelection(input, text) {
@@ -881,6 +1152,11 @@ document.querySelectorAll("[data-model-switch]").forEach((button) => {
 
 document.querySelector("[data-model-unload]")?.addEventListener("click", async (event) => {
   const button = event.currentTarget;
+  if (isGenerating || currentModelStatus?.operation === "generate") {
+    showToast("Model is generating a response.");
+    return;
+  }
+
   button.setAttribute("disabled", "disabled");
   setModelLoading("unloading");
   try {
@@ -1156,6 +1432,10 @@ document.querySelectorAll(".delete-chat").forEach((button) => {
   button.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
+    if (isGenerating) {
+      showToast("Wait until the current response finishes before deleting chats.");
+      return;
+    }
 
     const row = button.closest(".sidebar-chat-row");
     if (!row) {
@@ -1181,6 +1461,27 @@ document.querySelectorAll(".delete-chat").forEach((button) => {
       showToast(error.message);
     }
   });
+});
+
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a");
+  if (!link) {
+    return;
+  }
+
+  blockDuringGeneration(
+    event,
+    "Wait until the current response finishes before leaving this chat.",
+  );
+}, true);
+
+window.addEventListener("beforeunload", (event) => {
+  if (!isGenerating) {
+    return;
+  }
+
+  event.preventDefault();
+  event.returnValue = "";
 });
 
 document.addEventListener("DOMContentLoaded", () => {

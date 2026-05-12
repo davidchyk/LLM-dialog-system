@@ -4,9 +4,12 @@ from __future__ import annotations
 # Flask is the current web interface layer and can be extended later if needed.
 
 import json
+from dataclasses import dataclass, field
 from datetime import datetime
+from queue import Queue
 from pathlib import Path
-from typing import cast
+from threading import Thread
+from typing import Callable, cast
 
 from flask import (
     Flask,
@@ -27,6 +30,75 @@ from src.llm.model_registry import list_configured_models, list_local_models
 from src.llm.runtime import LLMRuntime
 
 
+@dataclass
+class BackgroundGenerationJob:
+    chat_id: str
+    content: str
+    manager: ChatManager
+    llm_runtime: LLMRuntime
+    on_finish: Callable[[str], None] | None = None
+    events: Queue[dict[str, object] | None] = field(default_factory=Queue)
+    finished: bool = False
+    error: str = ""
+
+    def start(self) -> None:
+        Thread(target=self._run, daemon=True).start()
+
+    def stream_events(self):
+        while True:
+            event = self.events.get()
+            if event is None:
+                return
+            yield event
+
+    def _run(self) -> None:
+        try:
+            stop_event = self.llm_runtime.generation_stop_event()
+            result = self.manager.send_message_stream(
+                self.chat_id,
+                self.content,
+                stop_event=stop_event,
+            )
+            if result is None:
+                self.error = "Chat was not found."
+                self.events.put({"type": "error", "error": self.error})
+                return
+
+            chat, chunks = result
+            self.events.put(
+                {
+                    "type": "user",
+                    "message": _message_to_response(chat.messages[-1]),
+                }
+            )
+
+            for chunk in chunks:
+                self.events.put({"type": "chunk", "content": chunk})
+
+            updated_chat = self.manager.get_chat(self.chat_id)
+            if updated_chat is None or len(updated_chat.messages) < 2:
+                self.error = "Unable to create response."
+                self.events.put({"type": "error", "error": self.error})
+                return
+
+            self.events.put(
+                {
+                    "type": "done",
+                    "assistant_message": _message_to_response(updated_chat.messages[-1]),
+                    "message_count": len(updated_chat.messages),
+                }
+            )
+        except Exception as error:
+            self.error = str(error)
+            self.events.put({"type": "error", "error": self.error})
+        finally:
+            self.finished = True
+            self.llm_runtime.end_generation()
+            if self.on_finish is not None:
+                self.on_finish(self.chat_id)
+            self.events.put(None)
+
+
 def create_app(
     chat_manager: ChatManager | None = None,
     models_dir: str | Path = "models",
@@ -38,6 +110,7 @@ def create_app(
     manager = chat_manager or ChatManager()
     llm_runtime = LLMRuntime(manager)
     resolved_model_config_path = model_config_path or AppConfig.MODEL_CONFIG_PATH
+    generation_jobs: dict[str, BackgroundGenerationJob] = {}
 
     @app.context_processor
     def inject_ui_context() -> dict[str, object]:
@@ -132,6 +205,8 @@ def create_app(
         content = str(data.get("message", "")).strip()
         if not content:
             return jsonify({"ok": False, "error": "Message cannot be empty."}), 400
+        if manager.get_chat(chat_id) is None:
+            return jsonify({"ok": False, "error": "Chat was not found."}), 404
         if not llm_runtime.begin_generation():
             return jsonify(
                 {
@@ -140,48 +215,28 @@ def create_app(
                 }
             ), 409
 
-        stop_event = llm_runtime.generation_stop_event()
-        result = manager.send_message_stream(chat_id, content, stop_event=stop_event)
-        if result is None:
-            llm_runtime.end_generation()
-            return jsonify({"ok": False, "error": "Chat was not found."}), 404
-
-        chat, chunks = result
+        job = BackgroundGenerationJob(
+            chat_id=chat_id,
+            content=content,
+            manager=manager,
+            llm_runtime=llm_runtime,
+            on_finish=lambda finished_chat_id: generation_jobs.pop(
+                finished_chat_id,
+                None,
+            ),
+        )
+        generation_jobs[chat_id] = job
+        job.start()
 
         def events():
             try:
-                yield _stream_event(
-                    {
-                        "type": "user",
-                        "message": _message_to_response(chat.messages[-1]),
-                    }
-                )
-                for chunk in chunks:
-                    yield _stream_event({"type": "chunk", "content": chunk})
-
-                updated_chat = manager.get_chat(chat_id)
-                if updated_chat is None or len(updated_chat.messages) < 2:
-                    yield _stream_event(
-                        {
-                            "type": "error",
-                            "error": "Unable to create response.",
-                        }
-                    )
-                    return
-
-                yield _stream_event(
-                    {
-                        "type": "done",
-                        "assistant_message": _message_to_response(
-                            updated_chat.messages[-1]
-                        ),
-                        "message_count": len(updated_chat.messages),
-                    }
-                )
+                for event in job.stream_events():
+                    yield _stream_event(event)
             except Exception as error:
                 yield _stream_event({"type": "error", "error": str(error)})
             finally:
-                llm_runtime.end_generation()
+                if job.finished:
+                    generation_jobs.pop(chat_id, None)
 
         return Response(
             stream_with_context(events()),

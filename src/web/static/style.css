@@ -39,6 +39,7 @@
 html,
 body {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -476,6 +477,7 @@ button:disabled {
 }
 
 .main-area {
+  height: 100vh;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -520,6 +522,9 @@ button:disabled {
 
 .landing h1 {
   margin-bottom: 10px;
+  overflow: visible;
+  padding-top: 2px;
+  line-height: 1.22;
 }
 
 .landing-form {
@@ -542,7 +547,6 @@ button:disabled {
 }
 
 .message-form {
-  flex: 0 0 auto;
   margin: 0 auto;
   padding-bottom: 18px;
   width: min(860px, 100%);
@@ -602,11 +606,13 @@ button:disabled {
 }
 
 .chat-view {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 12px;
-  height: 100vh;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  max-height: 100vh;
   min-height: 0;
+  overflow: hidden;
 }
 
 .chat-topbar {
@@ -654,7 +660,6 @@ button:disabled {
 .messages {
   align-content: start;
   display: grid;
-  flex: 1 1 auto;
   gap: 14px;
   justify-self: center;
   max-width: 100%;
@@ -757,25 +762,122 @@ button:disabled {
 
 .math-render {
   color: var(--text);
-  font-family: "Cambria Math", "Times New Roman", serif;
+  font-family:
+    "KaTeX_Main",
+    "Latin Modern Math",
+    "Latin Modern Roman",
+    "Computer Modern",
+    "CMU Serif",
+    "STIX Two Math",
+    "STIXGeneral",
+    "Cambria Math",
+    "Times New Roman",
+    serif;
 }
 
 .math-inline {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 1px 5px;
+  color: #f8fafc;
+  display: inline-flex;
+  font-family:
+    "KaTeX_Main",
+    "Latin Modern Math",
+    "Latin Modern Roman",
+    "Computer Modern",
+    "CMU Serif",
+    "STIX Two Math",
+    "STIXGeneral",
+    "Cambria Math",
+    "Times New Roman",
+    serif;
+  font-size: 1.04em;
+  line-height: 1.25;
+  padding: 0 1px;
+  vertical-align: middle;
 }
 
 .math-display {
-  background: #0b0b0b;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: block;
-  margin: 10px 0;
+  color: #f8fafc;
+  display: flex;
+  font-family:
+    "KaTeX_Main",
+    "Latin Modern Math",
+    "Latin Modern Roman",
+    "Computer Modern",
+    "CMU Serif",
+    "STIX Two Math",
+    "STIXGeneral",
+    "Cambria Math",
+    "Times New Roman",
+    serif;
+  font-size: 1.18em;
+  justify-content: center;
+  line-height: 1.3;
+  margin: 14px 0;
   overflow-x: auto;
-  padding: 10px 12px;
+  padding: 4px 0;
   text-align: center;
+}
+
+.math-fallback {
+  align-items: center;
+  gap: 1px;
+}
+
+.math-frac {
+  align-items: stretch;
+  display: inline-flex;
+  flex-direction: column;
+  font-size: 0.95em;
+  line-height: 1.05;
+  margin: 0 0.16em;
+  min-width: 1.2em;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.math-frac-top {
+  border-bottom: 1px solid currentColor;
+  display: block;
+  padding: 0 0.22em 0.12em;
+}
+
+.math-frac-bottom {
+  display: block;
+  padding: 0.12em 0.22em 0;
+}
+
+.math-script {
+  align-items: center;
+  display: inline-flex;
+  gap: 1px;
+  vertical-align: middle;
+}
+
+.math-script-stack {
+  display: inline-flex;
+  flex-direction: column;
+  font-size: 0.68em;
+  line-height: 0.95;
+  margin-left: 1px;
+}
+
+.math-script-stack sup,
+.math-script-stack sub {
+  font-size: 1em;
+  line-height: 1;
+  position: static;
+}
+
+.math-large-op {
+  font-family: "KaTeX_Size1", "KaTeX_Main", serif;
+  font-size: 1.3em;
+  line-height: 1;
+  padding: 0 1px;
+}
+
+.math-fallback > span:not(.math-frac):not(.math-script):not(.math-large-op),
+.math-script > span:not(.math-frac):not(.math-script-stack):not(.math-large-op) {
+  font-family: "KaTeX_Math", "KaTeX_Main", serif;
 }
 
 .message-role {
@@ -974,6 +1076,11 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
+  html,
+  body {
+    overflow: auto;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
     height: auto;

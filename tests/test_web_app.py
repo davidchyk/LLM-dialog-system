@@ -33,9 +33,23 @@ class StreamingLLMService(FakeLLMService):
 class StoppableStreamingLLMService(FakeLLMService):
     def generate_response_stream(self, user_message, history=None, stop_event=None):
         del user_message, history
+        if stop_event is not None:
+            stop_event.wait(timeout=5)
         if stop_event is not None and stop_event.is_set():
             return
         yield "Should not appear"
+
+
+class BlockingStreamingLLMService(FakeLLMService):
+    def __init__(self, release: Event) -> None:
+        super().__init__()
+        self.release = release
+
+    def generate_response_stream(self, user_message, history=None, stop_event=None):
+        del user_message, history, stop_event
+        yield "Started"
+        self.release.wait(timeout=5)
+        yield " finished"
 
 
 def make_client(tmp_path, model_config_path=None):
@@ -201,6 +215,39 @@ def test_stop_generation_endpoint_stops_current_stream(tmp_path):
     assert stop_response.get_json()["stopped"] is True
     assert [line["type"] for line in lines] == ["user", "done"]
     assert lines[-1]["assistant_message"]["content"] == "Generation stopped."
+
+
+def test_stream_generation_continues_after_client_stops_reading(tmp_path):
+    release = Event()
+    manager = ChatManager(
+        storage=InMemoryStorage(),
+        llm_service=BlockingStreamingLLMService(release),
+    )
+    app = create_app(manager, models_dir=tmp_path / "models")
+    app.config.update(TESTING=True)
+    client = app.test_client()
+    chat = manager.create_chat("Streaming")
+
+    response = client.post(
+        f"/chat/{chat.id}/stream",
+        json={"message": "Hi"},
+        buffered=False,
+    )
+    first_line = json.loads(next(response.response))
+    assert first_line["type"] == "user"
+
+    response.close()
+    release.set()
+
+    for _attempt in range(100):
+        updated_chat = manager.get_chat(chat.id)
+        if updated_chat is not None and len(updated_chat.messages) == 2:
+            break
+        Event().wait(timeout=0.01)
+
+    updated_chat = manager.get_chat(chat.id)
+    assert updated_chat is not None
+    assert updated_chat.messages[-1].content == "Started finished"
 
 
 def test_rename_endpoint_rejects_duplicate_title(tmp_path):
