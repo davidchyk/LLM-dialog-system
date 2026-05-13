@@ -29,8 +29,8 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a lo
 
 ### Known Bugs
 
-- [ ] Fix MathJax/LaTeX rendering: assistant formulas are still displayed as raw TeX in chat messages
-- [ ] Investigate whether local small models should be used mainly in English due to weak Ukrainian quality
+- [x] Fix MathJax/LaTeX rendering: assistant formulas are still displayed as raw TeX in chat messages
+- [x] Investigate whether local small models should be used mainly in English due to weak Ukrainian quality
 
 ### LLM Integration
 
@@ -84,7 +84,7 @@ The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a lo
 ### Course Project Documentation
 
 - [x] Add architecture diagram
-- [ ] Add screenshots
+- [x] Add screenshots
 - [x] Describe implementation
-- [ ] Describe testing
-- [ ] Write final explanatory note
+- [x] Describe testing
+- [x] Write final explanatory note
