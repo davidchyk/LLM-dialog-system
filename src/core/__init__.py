@@ -1,1 +1,1 @@
-"""Core chat and LLM abstractions (soon)"""
+"""Core chat and LLM abstractions"""

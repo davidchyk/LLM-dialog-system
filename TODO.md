@@ -1,5 +1,7 @@
 # TODO / Roadmap
 
+Status: **completed**
+
 ## Current Status
 
 The MVP is implemented with web and CLI interfaces, PostgreSQL storage, and a local Transformers LLM backend. Transformers inference is available for local models, including `distilgpt2`, `Qwen/Qwen2.5-0.5B-Instruct`, and the recommended `Qwen/Qwen2.5-1.5B-Instruct` path at `models/qwen2.5-1.5b-instruct`. Runtime model switching, streaming generation, and generation stop are implemented. Qwen2.5-1.5B-Instruct was tested and works technically, but Ukrainian answer quality and strict JSON formatting are weak. Course project documentation has the first two chapters, UML diagrams, and generated diagram images.

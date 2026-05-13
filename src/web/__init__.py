@@ -1,1 +1,1 @@
-"""Web interface (very important part XD)"""
+"""Web interface"""

@@ -1,1 +1,1 @@
-"""LLM dialog system package (йоу)"""
+"""LLM dialog system package"""

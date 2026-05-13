@@ -6,6 +6,8 @@
 
 This is a local Python MVP for dialog interaction with large language models. The project includes a Flask web interface, a console CLI mode, PostgreSQL chat storage, and local HuggingFace Transformers inference.
 
+Repository: <https://github.com/davidchyk/LLM-dialog-system>
+
 ## Current Features
 
 * Flask web interface with a dark minimal chat UI
@@ -15,10 +17,12 @@ This is a local Python MVP for dialog interaction with large language models. Th
 * Message history stored in PostgreSQL
 * Local Transformers backend with chat-template support for instruction models
 * Optional PEFT LoRA/QLoRA adapter loading for local Transformers models
-* Sidebar search, toast notifications, auto-resizing input, and auto-scroll
-* Assistant Markdown/code block rendering in the web UI
+* Streaming generation with a stop button
+* Chat export to Markdown
+* Sidebar chat/message search, toast notifications, auto-resizing input, and auto-scroll
+* Assistant Markdown/code block rendering with syntax highlighting and copy buttons
 * Assistant LaTeX/math rendering in the web UI
-* Backend/model/preset indicator, runtime model switching, and local model discovery in the sidebar
+* Backend/model/adapter/preset indicator, runtime model switching, model unload, and local model discovery in the sidebar
 
 ## Project Structure
 
@@ -59,17 +63,7 @@ Copy-Item .env.example .env
 
 Then edit `.env`.
 
-Minimal PostgreSQL + local LLM example:
-
-```text
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/llm_dialog_system
-
-LLM_BACKEND=transformers
-MODEL_NAME=models/qwen2.5-1.5b-instruct
-GENERATION_PRESET=balanced
-```
-
-Local Qwen example:
+Minimal PostgreSQL + local Qwen example:
 
 ```text
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/llm_dialog_system
@@ -183,6 +177,15 @@ pytest
 
 Normal tests use in-memory test storage and do not require a real PostgreSQL server.
 
+Coverage report for production code:
+
+```powershell
+python -m coverage run -m pytest
+python -m coverage report --include="src/*,migrations/*,scripts/*"
+```
+
+Current measured production coverage is 77%.
+
 Optional PostgreSQL integration tests require a real database and `DATABASE_URL`:
 
 ```powershell
@@ -216,7 +219,7 @@ Qwen/Qwen2.5-1.5B-Instruct
 Download it to `models/qwen2.5-1.5b-instruct`:
 
 ```powershell
-python scripts/_models_download.py --repo-id Qwen/Qwen2.5-1.5B-Instruct --local-dir models/qwen2.5-1.5b-instruct
+python scripts/models_download.py --repo-id Qwen/Qwen2.5-1.5B-Instruct --local-dir models/qwen2.5-1.5b-instruct
 ```
 
 This model is much better for chat than `distilgpt2`, but it is still a small local model and its quality is limited compared to large cloud models.
@@ -253,6 +256,24 @@ The web UI scans the local `models/` directory and shows available model folders
 Downloaded models are local artifacts and should not be committed to Git. After downloading a new model, refresh the page to see it in the sidebar. You can load or unload a listed model without restarting the Flask app.
 
 Configured models can also include a PEFT adapter path through `adapter_path` in `model_config.json`. The same can be set globally with `ADAPTER_PATH`.
+
+Example `model_config.json`:
+
+```json
+{
+  "models": [
+    {
+      "name": "Qwen2.5 1.5B Instruct",
+      "path": "models/qwen2.5-1.5b-instruct"
+    },
+    {
+      "name": "Qwen2.5 1.5B Instruct + LoRA",
+      "path": "models/qwen2.5-1.5b-instruct",
+      "adapter_path": "adapters/qwen-course-lora"
+    }
+  ]
+}
+```
 
 ## LoRA / QLoRA
 
@@ -291,10 +312,11 @@ Assistant responses can render LaTeX math in the web UI:
 \[ E = mc^2 \]
 ```
 
-The web UI uses a local offline MathJax-compatible renderer for math rendering in the browser interface.
+The web UI uses local KaTeX assets for offline math rendering in the browser interface, with a small MathJax-compatible wrapper for the existing rendering flow.
 
 ## Current Limitations
 
 * The PostgreSQL database must be created manually before first run.
-* Responses are not streamed yet.
+* Local model quality depends on the selected model and hardware resources.
+* Long-running local generation can be slow on CPU-only machines.
 * User accounts/auth are not implemented.
