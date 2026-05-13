@@ -1,0 +1,214 @@
+\newpage
+\section*{ДОДАТКИ}
+\addcontentsline{toc}{section}{ДОДАТКИ}
+
+\subsection*{Додаток А. Структура репозиторію програмного продукту}
+\addcontentsline{toc}{subsection}{Додаток А. Структура репозиторію програмного продукту}
+
+Вихідний код програмного продукту організовано за модульним принципом. Основні каталоги репозиторію:
+
+\begin{itemize}
+  \item \texttt{src/core} --- доменні моделі та бізнес-логіка чатів;
+  \item \texttt{src/web} --- Flask routes, HTML-шаблони, CSS і JavaScript web-інтерфейсу;
+  \item \texttt{src/cli} --- консольний режим роботи;
+  \item \texttt{src/storage} --- абстракція сховища та PostgreSQL-реалізація;
+  \item \texttt{src/llm} --- LLM-сервіси, runtime-керування моделлю та model registry;
+  \item \texttt{migrations} --- Alembic-міграції бази даних;
+  \item \texttt{tests} --- автоматизовані тести;
+  \item \texttt{scripts} --- допоміжні скрипти для завантаження моделей та адаптерів.
+\end{itemize}
+
+Така структура відповідає обраному багаторівневому підходу і дозволяє окремо розвивати інтерфейс користувача, бізнес-логіку, сховище даних та LLM-рівень.
+
+\subsection*{Додаток Б. Фрагменти модульних тестів}
+\addcontentsline{toc}{subsection}{Додаток Б. Фрагменти модульних тестів}
+
+Нижче наведено приклади тестів, які перевіряють основні компоненти системи.
+
+\textbf{Тест створення чату у \texttt{ChatManager}:}
+
+\begin{lstlisting}[style=plantumlstyle]
+def test_create_chat_with_custom_title(tmp_path):
+    manager = make_manager(tmp_path)
+
+    chat = manager.create_chat("Course Project")
+
+    assert chat.title == "Course Project"
+    assert manager.get_chat(chat.id).title == "Course Project"
+\end{lstlisting}
+
+Фрагмент перевіряє, що доменний сервіс створює чат із заданою назвою та дозволяє отримати його зі сховища.
+
+\textbf{Тест валідації дубльованих назв чатів:}
+
+\begin{lstlisting}[style=plantumlstyle]
+def test_reject_duplicate_title_case_insensitively(tmp_path):
+    manager = make_manager(tmp_path)
+    manager.create_chat("Project Chat")
+
+    with pytest.raises(DuplicateChatTitleError):
+        manager.create_chat("project chat")
+\end{lstlisting}
+
+Фрагмент перевіряє, що система не дозволяє створювати дублікати назв чатів незалежно від регістру символів.
+
+\textbf{Тест перемикання LoRA/QLoRA-адаптера у runtime:}
+
+\begin{lstlisting}[style=plantumlstyle]
+def test_runtime_switch_applies_adapter_path(monkeypatch):
+    captured = {}
+    manager = make_manager()
+    runtime = LLMRuntime(manager)
+
+    def fake_create(backend, model_name_or_path=None,
+                    generation_preset=None, adapter_path=None):
+        captured["adapter_path"] = adapter_path
+        return FakeLLMService()
+
+    monkeypatch.setattr("src.llm.runtime.create_llm_service", fake_create)
+
+    runtime.switch(
+        "transformers",
+        model_name_or_path="models/qwen",
+        adapter_path="adapters/qwen-lora",
+    )
+
+    assert captured["adapter_path"] == "adapters/qwen-lora"
+\end{lstlisting}
+
+Фрагмент перевіряє, що шлях до adapter передається у фабрику LLM-сервісу під час runtime-перемикання моделі.
+
+\textbf{Тест web endpoint для надсилання повідомлення:}
+
+\begin{lstlisting}[style=plantumlstyle]
+def test_send_endpoint_adds_user_and_assistant_messages(tmp_path):
+    client, manager = make_client(tmp_path)
+    chat = manager.create_chat("Web chat")
+
+    response = client.post(f"/chat/{chat.id}/send",
+                           json={"message": "Hello"})
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["ok"] is True
+    assert payload["user_message"]["content"] == "Hello"
+    assert payload["assistant_message"]["role"] == "assistant"
+    assert len(manager.get_chat(chat.id).messages) == 2
+\end{lstlisting}
+
+Фрагмент перевіряє, що HTTP endpoint додає повідомлення користувача, генерує відповідь асистента і зберігає обидва повідомлення в історії чату.
+
+\textbf{Тест сканування локальної моделі:}
+
+\begin{lstlisting}[style=plantumlstyle]
+def test_folder_with_config_and_safetensors_is_listed(tmp_path):
+    model_dir = tmp_path / "models" / "qwen"
+    model_dir.mkdir(parents=True)
+    (model_dir / "config.json").write_text("{}", encoding="utf-8")
+    (model_dir / "model.safetensors").write_text("fake", encoding="utf-8")
+    (model_dir / "tokenizer.json").write_text("{}", encoding="utf-8")
+
+    models = list_local_models(tmp_path / "models")
+
+    assert len(models) == 1
+    assert models[0].name == "qwen"
+    assert models[0].has_config is True
+    assert models[0].has_weights is True
+    assert models[0].has_tokenizer is True
+\end{lstlisting}
+
+Фрагмент перевіряє, що model registry знаходить локальну модель лише тоді, коли в каталозі є конфігурація, ваги та tokenizer.
+
+\subsection*{Додаток В. Результати покриття коду тестами}
+\addcontentsline{toc}{subsection}{Додаток В. Результати покриття коду тестами}
+
+Для оцінювання покриття було використано \texttt{coverage.py}. Повний запуск тестів:
+
+\begin{lstlisting}[style=plantumlstyle]
+python -m coverage run -m pytest
+\end{lstlisting}
+
+Результат виконання:
+
+\begin{lstlisting}[style=plantumlstyle]
+105 passed in 3.26s
+\end{lstlisting}
+
+Звіт покриття для production-коду було сформовано командою:
+
+\begin{lstlisting}[style=plantumlstyle]
+python -m coverage report --include="src/*,migrations/*,scripts/*"
+\end{lstlisting}
+
+Основні результати:
+
+\begin{longtable}{|p{8cm}|p{3cm}|}
+\caption*{Фрагмент звіту покриття production-коду}\\
+\hline
+\textbf{Модуль} & \textbf{Покриття} \\
+\hline
+\texttt{src/core/chat\_manager.py} & 94\% \\
+\hline
+\texttt{src/config.py} & 98\% \\
+\hline
+\texttt{src/llm/runtime.py} & 97\% \\
+\hline
+\texttt{src/llm/model\_registry.py} & 92\% \\
+\hline
+\texttt{src/storage/postgres\_storage.py} & 77\% \\
+\hline
+\texttt{src/web/web\_app.py} & 81\% \\
+\hline
+\textbf{Загальне покриття production-коду} & \textbf{77\%} \\
+\hline
+\end{longtable}
+
+Отримане покриття відповідає рекомендованому рівню 70--80\% і підтверджує, що основна бізнес-логіка та ключові інтеграційні точки системи перевіряються автоматизованими тестами.
+
+\subsection*{Додаток Г. Приклади функціонального тестування web/API}
+\addcontentsline{toc}{subsection}{Додаток Г. Приклади функціонального тестування web/API}
+
+Функціональні сценарії перевірялися через Flask test client. Вони імітують HTTP-запити користувача до web-застосунку.
+
+\begin{longtable}{|p{3.5cm}|p{2cm}|p{4.8cm}|p{4cm}|}
+\caption*{Приклади функціонального тестування}\\
+\hline
+\textbf{Дія} & \textbf{Метод} & \textbf{Endpoint} & \textbf{Очікуваний результат} \\
+\hline
+Відкрити головну сторінку & GET & \texttt{/} & Статус 200, відображення sidebar, model status і списку чатів. \\
+\hline
+Створити чат & POST & \texttt{/chats} & Новий чат створено, користувача перенаправлено на сторінку чату. \\
+\hline
+Надіслати повідомлення & POST & \texttt{/chat/<id>/send} & Збережено повідомлення користувача й відповідь асистента. \\
+\hline
+Streaming-генерація & POST & \texttt{/chat/<id>/stream} & Відповідь повертається NDJSON-частинами та зберігається після завершення. \\
+\hline
+Зупинити генерацію & POST & \texttt{/api/generation/stop} & Активний stop event встановлено, генерація завершується контрольовано. \\
+\hline
+Перемкнути модель & POST & \texttt{/api/model/switch} & Runtime переходить у стан завантаження, після успіху активна модель оновлюється. \\
+\hline
+Пошук повідомлень & GET & \texttt{/api/messages/search} & Повертаються релевантні повідомлення з назвою чату і роллю автора. \\
+\hline
+Експорт чату & GET & \texttt{/chat/<id>/export} & Користувач отримує Markdown-файл з історією діалогу. \\
+\hline
+\end{longtable}
+
+Приклад перевірки помилки валідації порожнього повідомлення:
+
+\begin{lstlisting}[style=plantumlstyle]
+def test_send_endpoint_rejects_empty_message(tmp_path):
+    client, manager = make_client(tmp_path)
+    chat = manager.create_chat("Web chat")
+
+    response = client.post(f"/chat/{chat.id}/send",
+                           json={"message": "   "})
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "ok": False,
+        "error": "Message cannot be empty.",
+    }
+\end{lstlisting}
+
+Цей тест перевіряє, що web-рівень не приймає порожні повідомлення і повертає користувачу коректну помилку.
+

@@ -20,11 +20,13 @@
 \usepackage{pdflscape}
 
 \geometry{
-    left=30mm,
-    right=15mm,
-    top=20mm,
-    bottom=20mm
+    left=2cm,
+    right=2cm,
+    top=2cm,
+    bottom=2cm
 }
+
+\setlength{\emergencystretch}{3em}
 
 \usepackage[
   unicode,
@@ -73,22 +75,67 @@
 
 \begin{document}
 
-\begin{center}
-    \textbf{\Large Система діалогової взаємодії з великими мовними моделями з веб- та консольним інтерфейсами}
-\end{center}
+\hypersetup{pageanchor=false}
+\begin{titlepage}
 
-\vspace{0.5cm}
+    \begin{center}
+        \includegraphics[width=0.7\textwidth]{media/letterhead.png}
+    \end{center}
+
+    \begin{center}
+        \large Національний технічний університет України\\
+        «Київський політехнічний інститут імені Ігоря Сікорського»\\[1em]
+        Факультет інформатики та обчислювальної техніки\\
+        Кафедра обчислювальної техніки
+    \end{center}
+
+    \vfill
+
+    \begin{center}
+        \textbf{\LARGE Курсова робота}\\[1em]
+        \textbf{\large з дисципліни «Інженерія програмного забезпечення»}\\[1em]
+        \textbf{\Large на тему:}\\[0.5em]
+        \textbf{\Large «Система діалогової взаємодії з великими мовними моделями з веб- та консольним інтерфейсами»}
+    \end{center}
+
+    \vfill
+
+    \begin{flushright}
+        Виконав: студент 2 курсу ФІОТ, гр. ІО-41\\
+        \textit{Давидчук А. М.}\\
+        Залікова книжка № 4106\\[1em]
+            Укладач: старший викладач \textit{Васильєва М.\,Д.}
+    \end{flushright}
+
+    \vfill
+
+    \begin{center}
+        Київ --- 2026
+    \end{center}
+
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+\input{chapters/assignment}
+\input{chapters/annotation}
+\input{chapters/technical_task_summary}
 
 \tableofcontents
 \newpage
 
+\input{chapters/introduction}
 \input{chapters/chapter_1_analytical_review}
 \input{chapters/chapter_2_system_design}
+\input{chapters/chapter_3_implementation_testing}
+\input{chapters/conclusions}
 
 \newpage
-\section*{СПИСОК ДЖЕРЕЛ ДЛЯ РОЗДІЛІВ 1--2}
-\addcontentsline{toc}{section}{СПИСОК ДЖЕРЕЛ ДЛЯ РОЗДІЛІВ 1--2}
+\section*{СПИСОК ВИКОРИСТАНИХ ДЖЕРЕЛ}
+\addcontentsline{toc}{section}{СПИСОК ВИКОРИСТАНИХ ДЖЕРЕЛ}
 
+\begingroup
+\small
+\sloppy
 \begin{enumerate}
   \item Vaswani A., Shazeer N., Parmar N., Uszkoreit J., Jones L., Gomez A. N., Kaiser L., Polosukhin I. Attention Is All You Need. Advances in Neural Information Processing Systems, 2017. URL: \url{https://arxiv.org/abs/1706.03762}.
   \item Zhao W. X., Zhou K., Li J., Tang T., Wang X., Hou Y. та ін. A Survey of Large Language Models. arXiv preprint, 2023. URL: \url{https://arxiv.org/abs/2303.18223}.
@@ -108,6 +155,14 @@
   \item LM Studio. Documentation. URL: \url{https://lmstudio.ai/docs}.
   \item Ollama. Documentation. URL: \url{https://github.com/ollama/ollama/tree/main/docs}.
   \item Open WebUI. Documentation. URL: \url{https://docs.openwebui.com/}.
+  \item SQLAlchemy. SQLAlchemy Documentation. URL: \url{https://docs.sqlalchemy.org/}.
+  \item Alembic. Alembic Documentation. URL: \url{https://alembic.sqlalchemy.org/}.
+  \item Pytest. pytest Documentation. URL: \url{https://docs.pytest.org/}.
+  \item KaTeX. KaTeX Documentation. URL: \url{https://katex.org/docs/}.
+  \item Hugging Face. PEFT documentation. URL: \url{https://huggingface.co/docs/peft/index}.
 \end{enumerate}
+\endgroup
+
+\input{chapters/appendices}
 
 \end{document}
