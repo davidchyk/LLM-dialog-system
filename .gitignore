@@ -6,6 +6,7 @@ docs/**/*.log
 docs/**/*.out
 *.synctex.gz
 *.toc
+_minted/
 
 # Python runtime files:
 __pycache__/
